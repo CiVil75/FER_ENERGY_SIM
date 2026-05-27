@@ -7,7 +7,7 @@ import math
 from streamlit_folium import st_folium
 
 # --- CONFIGURAZIONE INTERFACCIA ED ESTETICA ---
-st.set_page_config(page_title="Energy GIS Simulator", layout="wide")
+st.set_page_config(page_title="RES-Bsed Home GIS Simulator", layout="wide")
 
 # CSS Avanzato per layout ultra-compatto, font professionale e griglia orizzontale EV micro
 st.markdown("""
@@ -227,13 +227,13 @@ with exp_pv.expander(T["pv_title"], expanded=False):
 
 with exp_wind.expander(T["wind_title"], expanded=False):
     st.markdown(f"<div class='custom-note'>{T['wind_help']}</div>", unsafe_allow_html=True)
-    wind_power_kw = st.slider(T["wind_p"], 1, 100, 2)
+    wind_power_kw = st.slider(T["wind_p"], 1, 20, 2)
     hub_height = st.slider(T["wind_h"], 10, 200, 80)
     rotor_diameter = st.slider(T["wind_d"], 10, 200, 80)
 
 with exp_batt.expander(T["batt_title"], expanded=False):
     st.markdown(f"<div class='custom-note'>{T['batt_help']}</div>", unsafe_allow_html=True)
-    battery_capacity_kwh = st.slider(T["batt_c"], 0, 100, 10)
+    battery_capacity_kwh = st.slider(T["batt_c"], 0, 100, 20)
     battery_eff = st.slider(T["batt_eff"], 70, 100, 92) / 100.0
     dod_limit = st.slider(T["batt_dod"], 50, 100, 80)
     soc_min = battery_capacity_kwh * (1 - (dod_limit / 100.0))
