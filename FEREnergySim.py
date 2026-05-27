@@ -7,7 +7,7 @@ import math
 from streamlit_folium import st_folium
 
 # --- CONFIGURAZIONE INTERFACCIA ED ESTETICA ---
-st.set_page_config(page_title="RES-Bsed Home GIS Simulator", layout="wide")
+st.set_page_config(page_title="RES-Bsed Home Simulator", layout="wide")
 
 # CSS Avanzato per layout ultra-compatto, font professionale e griglia orizzontale EV micro
 st.markdown("""
@@ -56,7 +56,7 @@ st.markdown("""
 # --- DIZIONARIO DI TRADUZIONE BILINGUE (ITA / ENG) ---
 LANG_DICT = {
     "ITA": {
-        "title": "🌍 RES-Bsed Home GIS Simulator by Prof. Eng. C. Villante - University of L'Aquila (Beta Version)",
+        "title": "🌍 RES-Based Home Simulator by Prof. Eng. C. Villante - University of L'Aquila (Beta Version)",
         "subtitle": "Analisi quantitativa e modellazione geospaziale per micro-reti, accumuli stazionari ed ecosistemi V2H.",
         "params_title": "🎛️ Configurazione Parametri Tecnici",
         "pv_title": "☀️ Fotovoltaico (Max 20 kWp)",
