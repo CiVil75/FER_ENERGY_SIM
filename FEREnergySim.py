@@ -56,7 +56,7 @@ st.markdown("""
 # --- DIZIONARIO DI TRADUZIONE BILINGUE (ITA / ENG) ---
 LANG_DICT = {
     "ITA": {
-        "title": "🌍 Energy GIS Simulator",
+        "title": "🌍 RES-Bsed Home GIS Simulator by Prof. Eng. C. Villante - University of L'Aquila (Beta Version)",
         "subtitle": "Analisi quantitativa e modellazione geospaziale per micro-reti, accumuli stazionari ed ecosistemi V2H.",
         "params_title": "🎛️ Configurazione Parametri Tecnici",
         "pv_title": "☀️ Fotovoltaico (Max 20 kWp)",
