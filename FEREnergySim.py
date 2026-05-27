@@ -141,6 +141,7 @@ LANG_DICT = {
         "wind_help": "💡 **WT**: Hypotesis is made to uindividually use a power fraction of a big-size 2MW wind generator. Extrapolates wind speed at hub height using power law from the Open-Meteo reanalysis dataset.",
         "wind_p": "Nominal Power (kW)",
         "wind_d": "Rotor Diameter (m)",
+	"wind_h": "Hub height (m)",
         "batt_title": "🔋 Electrochemical Storage (BESS)",
         "batt_help": "💡 **BESS**: Max DoD (Depth of Discharge) preserves battery cycle life by setting a minimum residual energy constraint.",
         "batt_c": "Nominal Capacity (kWh)",
