@@ -66,10 +66,9 @@ LANG_DICT = {
         "pv_az": "Azimuth Angle (°)",
         "pv_eff": "Rendimento Modulo (%)",
         "wind_title": "🌬️ Micro-Eolico",
-        "wind_help": "💡 **WT**: Estrapola la velocità del vento all'altezza del mozzo mediante legge di potenza dal dataset Open-Meteo.",
+        "wind_help": "💡 **WT**: Si ipotizza di utilizzare per fini individuali una quota di potenza di un generatore da 2 MW di grande taglia. Estrapola la velocità del vento all'altezza del mozzo mediante legge di potenza dal dataset Open-Meteo.",
         "wind_p": "Potenza Nominale (kW)",
         "wind_h": "Altezza Mozzo (m)",
-        "wind_d": "Diametro Rotore (m)",
         "batt_title": "🔋 Accumulo Elettrochimico",
         "batt_help": "💡 **BESS**: Il DoD Max (profondità di scarica) preserva il ciclo di vita vincolando la capacità minima residua.",
         "batt_c": "Capacità Nominale (kWh)",
@@ -139,9 +138,8 @@ LANG_DICT = {
         "pv_az": "Azimuth Angle (°)",
         "pv_eff": "Module Efficiency (%)",
         "wind_title": "🌬️ Micro-Wind",
-        "wind_help": "💡 **WT**: Extrapolates wind speed at hub height using power law from the Open-Meteo reanalysis dataset.",
+        "wind_help": "💡 **WT**: Hypotesis is made to uindividually use a power fraction of a big-size 2MW wind generator. Extrapolates wind speed at hub height using power law from the Open-Meteo reanalysis dataset.",
         "wind_p": "Nominal Power (kW)",
-        "wind_h": "Hub Height (m)",
         "wind_d": "Rotor Diameter (m)",
         "batt_title": "🔋 Electrochemical Storage (BESS)",
         "batt_help": "💡 **BESS**: Max DoD (Depth of Discharge) preserves battery cycle life by setting a minimum residual energy constraint.",
@@ -229,7 +227,7 @@ with exp_wind.expander(T["wind_title"], expanded=False):
     st.markdown(f"<div class='custom-note'>{T['wind_help']}</div>", unsafe_allow_html=True)
     wind_power_kw = st.slider(T["wind_p"], 1, 20, 2)
     hub_height = st.slider(T["wind_h"], 10, 200, 80)
-    rotor_diameter = st.slider(T["wind_d"], 10, 200, 80)
+    
 
 with exp_batt.expander(T["batt_title"], expanded=False):
     st.markdown(f"<div class='custom-note'>{T['batt_help']}</div>", unsafe_allow_html=True)
@@ -322,6 +320,7 @@ def get_wind_data():
     wind_10m = res.json()["hourly"]["windspeed_10m"]
     corrected_wind = [v * ((hub_height / 10) ** 0.14) for v in wind_10m]
     avg_speed = sum(corrected_wind) / len(corrected_wind)
+    rotor_diameter = 80
     rotor_area = math.pi * (rotor_diameter / 2) ** 2
     average_power_kw = min((0.5 * 1.225 * rotor_area * 0.42 * (avg_speed ** 3)) / 1000, wind_power_kw)
     return {"annual_energy": average_power_kw * 8760, "wind_profiles": corrected_wind}
