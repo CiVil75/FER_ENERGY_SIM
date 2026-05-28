@@ -9,7 +9,7 @@ from streamlit_folium import st_folium
 # --- CONFIGURAZIONE INTERFACCIA ED ESTETICA ---
 st.set_page_config(page_title="RES-Based Home Simulator", layout="wide")
 
-# CSS Avanzato per layout ultra-compatto, font professionale e griglia orizzontale EV
+# CSS Avanzato per layout ultra-compatto, font professionale e ottimizzazione spazi
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -36,6 +36,16 @@ st.markdown("""
         margin-bottom: 0.6rem;
         line-height: 1.3;
     }
+    .tech-explanation {
+        padding: 0.75rem 1rem;
+        border-radius: 0.375rem;
+        font-size: 0.82rem;
+        background-color: #F1F5F9;
+        color: #334155;
+        border-left: 4px solid #64748B;
+        margin-bottom: 0.8rem;
+        line-height: 1.45;
+    }
     .custom-note-result { 
         padding: 0.6rem 0.75rem; 
         border-radius: 0.25rem; 
@@ -51,165 +61,161 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- DIZIONARIO DI TRADUZIONE BILINGUE (ITA / ENG) ---
+# --- DIZIONARIO DI TRADUZIONE BILINGUE CORREDATO DI DOCUMENTAZIONE TECNICA ---
 LANG_DICT = {
     "ITA": {
         "title": "🌍 RES-Based Home Simulator by Prof. Eng. C. Villante - University of L'Aquila (Beta Version)",
         "subtitle": "Analisi quantitativa e modellazione geospaziale per micro-reti, accumuli stazionari ed ecosistemi V2H.",
+        
+        # Sezione Spiegazione Globale del Codice
+        "doc_expander_title": "📖 Spiegazione Architettura del Codice e Flussi Dati (Technical Documentation)",
+        "doc_global_text": """
+        ### 🔬 Architettura del Modello e Algoritmo di Simulazione
+        Questo simulatore esegue un'analisi energetica dinamica accoppiata con risoluzione oraria ($24 \\text{ ore} \\times 12 \\text{ mesi}$ per un totale di $288$ punti di calcolo rappresentativi) per modellare l'interazione tra sorgenti rinnovabili locali, carichi termici ed elettrici dell'edificio, sistemi stazionari BESS e veicoli elettrici operanti in logica Vehicle-to-Home (V2H).
+
+        #### 1. Origine e Raccolta dei Dati (Data Ingestion)
+        L'applicazione interroga programmaticamente API geospaziali esterne in tempo reale basandosi sulle coordinate geografiche (Lat/Lon) selezionate:
+        * **Fotovoltaico (PV):** Invia i parametri di inclinazione (*Tilt*), orientamento (*Azimuth*) e perdite di sistema alle API **EU-PVGIS (Joint Research Centre)** per ricavare la radiazione solare reale mensile del sito.
+        * **Micro-Eolico (WT):** Scarica il dataset climatico orario annuale storico dalle API **Open-Meteo (Reanalysis Model)**. Estrapola la velocità del vento all'altezza del mozzo impostata ($v_h$) applicando la *legge di potenza logaritmica*: $v_h = v_{10} \\cdot \\left(\\frac{h}{10}\\right)^{\\alpha}$ (con coefficiente di rugosità $\\alpha = 0.14$).
+        * **Carichi Termici (Firma Termica):** Estrae le temperature storiche orarie esterne del sito (Open-Meteo) per calcolare i Gradi Giorno e modellare la domanda invernale di riscaldamento e quella estiva di condizionamento (AC) incrociandole con la superficie calpestabile e la trasmittanza della Classe Energetica impostata.
+
+        #### 2. Logica dei Tre Scenari di Autoconsumo Comparati
+        * **Scenario 1 (Monodirezionale Standard):** Configurazione passiva. L'EV si ricarica linearmente nelle ore spuntate sulla matrice oraria dividendo equamente il consumo giornaliero stimato. Il BESS immagazzina l'eccedenza FER locale e copre i deficit domestici finché la carica non raggiunge il *DoD Massimo*.
+        * **Scenario 2 (Smart Charging):** Gestione dinamica coordinata. La ricarica dell'EV viene vincolata rigorosamente alla presenza di eccedenza di generazione FER locale in tempo reale sul nodo domestico, minimizzando il prelievo da rete. La ricarica forzata da rete interviene solo se lo stato di carica scende sotto il limite minimo di viaggio programmato.
+        * **Scenario 3 (Bidirezionale V2H/V2L):** Massima flessibilità accoppiata. La batteria dell'EV viene trattata come un sistema di accumulo mobile bidirezionale distribuito. Nelle ore in cui il veicolo è connesso alla rete domestica ed ha una carica superiore al minimo di sicurezza, inietta potenza per azzerare i picchi di consumo della casa (carico base + pompe di calore), cooperando in parallelo o precedenza al BESS stazionario.
+        """,
+        
         "params_title": "🎛️ Configurazione Parametri Tecnici ed Economici",
         "pv_title": "☀️ Fotovoltaico (Max 20 kWp)",
-        "pv_help": "💡 **PV**: 1 kWp occupa ~5-7 m². Inclinazione (Tilt) ottimale in Italia: 30°-35°. Azimuth: 0° Sud, -90° Est, 90° Ovest.",
-        "pv_p": "Potenza Impianto (kWp)",
-        "pv_t": "Tilt Angle (°)",
-        "pv_az": "Azimuth Angle (°)",
-        "pv_eff": "Rendimento Modulo (%)",
+        "pv_help": "💡 1 kWp occupa ~5-7 m². Inclinazione ottimale in Italia: 30°-35°.",
+        "pv_tech_expl": "⚙️ **Modellazione PV:** L'output normalizzato di PVGIS viene scalato linearmente sul rendimento effettivo del modulo inserito dall'utente. La distribuzione oraria segue la curva di elevazione solare geometrica locale del mese corrispondente.",
         "wind_title": "🌬️ Micro-Eolico",
-        "wind_help": "💡 **WT**: Estrapola la velocità del vento all'altezza del mozzo mediante legge di potenza logaritmica dal dataset Open-Meteo.",
-        "wind_p": "Potenza Nominale (kW)",
-        "wind_h": "Altezza Mozzo (m)",
+        "wind_help": "💡 Estrapola il profilo orario mediante legge di potenza logaritmica dal dataset meteorologico Open-Meteo.",
+        "wind_tech_expl": "⚙️ **Modellazione WT:** Calcola la potenza istantanea convertita applicando l'equazione del rotore: $P = \\min\\left(\\frac{1}{2} \\rho A C_p v_h^3, P_{nom}\\right)$ dove $\\rho=1.225\\text{ kg/m}^3$, $A$ è l'area spazzata dalle pale e $C_p=0.35$ (limite di Betz reale).",
         "batt_title": "🔋 Accumulo Stazionario (BESS)",
-        "batt_help": "💡 **BESS**: Il DoD Max (profondità di scarica) preserva il ciclo di vita vincolando la capacità minima residua dell'accumulo d'abitazione.",
-        "batt_c": "Capacità Nominale (kWh)",
-        "batt_eff": "Efficienza Round-Trip (%)",
-        "batt_dod": "DoD Massimo (%)",
+        "batt_help": "💡 Il DoD Max preserva il ciclo di vita vincolando la capacità minima residua dell'accumulo d'abitazione.",
+        "batt_tech_expl": "⚙️ **Modellazione BESS:** Algoritmo a vincoli di soglia discrete. Lo stato di carica ($SoC_t$) è limitato inferiormente da $SoC_{min} = C_{nom} \\cdot (1 - DoD)$ e superiormente da $C_{nom}$. Applica rendimento quadratico sulle singole fasi di carica/scarica.",
         "load_title": "🏠 Profilo Utenza & Edificio",
-        "load_help": "💡 **Loads**: Calcola la firma termica invernale e il raffrescamento incrociando la classe dell'edificio con le temperature storiche GIS.",
-        "load_area": "Superficie Calpestabile (m²)",
-        "load_class": "Classe Energetica",
-        "load_occ": "Numero Occupanti",
-        "load_cop": "COP/EER Medio Pompa Calore",
+        "load_help": "💡 Calcola la firma termica incrociando la classe dell'edificio con le temperature storiche GIS.",
+        "load_tech_expl": "⚙️ **Modellazione Carichi:** Combina un profilo base stocastico di consumo elettrico antropico (luci ed elettrodomestici parametrato sul numero di occupanti) con la domanda energetica della pompa di calore calcolata dinamicamente come inversamente proporzionale al $COP$ orario stimato sui dati meteo storici locali.",
         "eco_title": "💰 Parametri Economici & Tariffe Grid",
-        "eco_help": "💡 **Tariffe**: Inserisci i costi reali di acquisto/vendita dell'energia per valutare l'ammortamento (Payback Period) e il risparmio in bolletta.",
-        "eco_cost": "Costo Energia Prelevata (€/kWh)",
-        "eco_sell": "Tariffa Immissione / RID (€/kWh)",
-        "eco_capex": "CAPEX Impianto Base (PV+Wind) (€)",
+        "eco_help": "💡 Inserisci i costi reali di acquisto/vendita per valutare l'ammortamento (Payback Period).",
+        "eco_tech_expl": "⚙️ **Analisi Finanziaria:** Calcola il Risparmio Annuo come: $\\Delta \\text{CashFlow} = (\\text{Autoconsumo} \\cdot \\text{Costo Energia}) + (\\text{Surplus Immesso} \\cdot \\text{Tariffa RID})$. Il Simple Payback Period è calcolato come $\\frac{\\text{CAPEX Totale Scenari}}{\\Delta \\text{CashFlow}}$.",
+        
         "load_ev_check": "Abilita Veicolo Elettrico (EV)",
         "ev_section_title": "🚗 Profilazione EV & Configurazione Infrastruttura di Ricarica / V2H",
-        "ev_help": "💡 **EV & V2H**: Definisci le caratteristiche del veicolo e l'infrastruttura di ricarica. Sotto trovi la matrice temporale di disponibilità (00-23h). Nei periodi non spuntati il veicolo consuma energia per lo spostamento.",
-        "ev_cap": "Capacità Batteria EV (kWh)",
-        "ev_km": "Distanza Giornaliera (km)",
-        "ev_whkm": "Consumo Specifico (Wh/km)",
-        "ev_v2hp": "Potenza Wallbox / Inverter V2H (kW)",
-        "ev_v2heff": "Efficienza Convertitore (%)",
-        "ev_soc_init": "SoC Iniziale di Partenza (%)",
-        "ev_soc_min": "SoC Minimo di Sicurezza per Viaggio (%)",
-        "ev_capex_s1": "Costo Aggiuntivo Wallbox S1 Standard (€)",
-        "ev_capex_s2": "Costo Aggiuntivo Smart Wallbox S2 (€)",
-        "ev_capex_s3": "Costo Aggiuntivo Stazione Bidirezionale V2H S3 (€)",
+        "ev_help": "💡 Sotto trovi la matrice temporale di disponibilità (00-23h). Nei periodi non spuntati il veicolo consuma energia per lo spostamento esterno.",
+        "ev_tech_expl": "⚙️ **Modellazione EV & V2H:** Quando disconnesso dalla rete domestica (matrice non spuntata), l'EV drena costantemente energia dai suoi accumulatori integrati in funzione dei km totali giornalieri da percorrere. Quando è connesso, lo scenario V2H risolve un problema di bilanciamento istantaneo scambiando energia nel limite di potenza bidirezionale continuo della Wallbox.",
+        
+        "pv_p": "Potenza Impianto (kWp)", "pv_t": "Tilt Angle (°)", "pv_az": "Azimuth Angle (°)", "pv_eff": "Rendimento Modulo (%)",
+        "wind_p": "Potenza Nominale (kW)", "wind_h": "Altezza Mozzo (m)",
+        "batt_c": "Capacità Nominale (kWh)", "batt_eff": "Efficienza Round-Trip (%)", "batt_dod": "DoD Massimo (%)",
+        "load_area": "Superficie Calpestabile (m²)", "load_class": "Classe Energetica", "load_occ": "Numero Occupanti", "load_cop": "COP/EER Medio Pompa Calore",
+        "eco_cost": "Costo Energia Prelevata (€/kWh)", "eco_sell": "Tariffa Immissione / RID (€/kWh)", "eco_capex": "CAPEX Impianto Base (PV+Wind) (€)",
+        
+        "ev_cap": "Capacità Batteria EV (kWh)", "ev_km": "Distanza Giornaliera (km)", "ev_whkm": "Consumo Specifico (Wh/km)",
+        "ev_v2hp": "Potenza Wallbox / Inverter V2H (kW)", "ev_v2heff": "Efficienza Convertitore (%)", "ev_soc_init": "SoC Iniziale di Partenza (%)", "ev_soc_min": "SoC Minimo di Sicurezza per Viaggio (%)",
+        "ev_capex_s1": "Costo Aggiuntivo Wallbox S1 Standard (€)", "ev_capex_s2": "Costo Aggiuntivo Smart Wallbox S2 (€)", "ev_capex_s3": "Costo Aggiuntivo Stazione Bidirezionale V2H S3 (€)",
         "ev_grid_matrix": "Matrice di Disponibilità Oraria dell'EV alla Rete Domestica (Spuntato = Connesso alla Wallbox)",
-        "gis_title": "📍 Posizionamento Geografico Impianto",
-        "gis_search": "Cerca Comune o Coordinate",
-        "gis_btn": "🔍 Aggiorna Mappa Sito",
-        "gis_active": "**Sito Attivo:**",
+        
+        "gis_title": "📍 Posizionamento Geografico Impianto", "gis_search": "Cerca Comune o Coordinate", "gis_btn": "🔍 Aggiorna Mappa Sito", "gis_active": "**Sito Attivo:**",
         "run_btn": "⚡ Esegui Simulazione Energetica Dinamica",
         "results_title": "📊 Analisi Output e Indicatori di Performance",
-        "results_help": "🔬 **Interpretazione KPI**: Calcolo accoppiato multi-scenario. Lo Smart Charging modula i carichi seguendo la produzione FER; il V2H abilita la bidirezionalità flessibile iniettando energia verso la casa.",
-        "kpi_ac": "Autoconsumo",
-        "kpi_bill_savings": "Risparmio Economico",
-        "kpi_payback": "Tempo di Ritorno",
-        "chart_gen_title": "Profili di Generazione Mensile",
-        "chart_load_title": "Profili di Fabbisogno Mensile (Riscaldamento vs Condizionamento)",
-        "chart_x_month": "Mese",
-        "chart_y_kwh": "Energia [kWh]",
+        "results_help": "🔬 Lo Smart Charging modula i carichi seguendo la produzione FER; il V2H abilita la bidirezionalità flessibile iniettando energia verso la casa.",
+        "kpi_ac": "Autoconsumo", "kpi_bill_savings": "Risparmio Economico", "kpi_payback": "Tempo di Ritorno",
+        "chart_gen_title": "Profili di Generazione Mensile", "chart_load_title": "Profili di Fabbisogno Mensile (Riscaldamento vs Condizionamento)",
+        "chart_x_month": "Mese", "chart_y_kwh": "Energia [kWh]",
         "season_title": "📈 Dinamica Oraria Stagionale sui Giorni Medi Tipici",
-        "season_help": "🔬 **Interpretazione Grafici Orari**: Per ogni stagione viene ricostruito il giorno medio tipico solare. A sinistra viene analizzato il bilancio di potenza istantaneo; a destra lo stato di carica (SoC) dei vettori energetici.",
+        "season_help": "🔬 A sinistra viene analizzato il bilancio di potenza istantaneo; a destra lo stato di carica (SoC) dei vettori energetici.",
         "inv": "Inverno", "pri": "Primavera", "est": "Estate", "aut": "Autunno",
         "inv_t": "❄️ Giorno Tipico Invernale (Gennaio)", "pri_t": "🌱 Giorno Tipico Primavera (Aprile)", "est_t": "☀️ Giorno Tipico Estivo (Luglio)", "aut_t": "🍂 Giorno Tipico Autunnale (Ottobre)",
-        "chart_hourly_title": "Bilancio di Potenza Orario",
-        "chart_soc_title": "Stato di Carica (SoC)",
-        "chart_h_x": "Ora del Giorno [h]",
-        "chart_h_y_flow": "Energia Oraria [kWh]",
-        "chart_h_y_soc": "State of Charge [%]",
-        "legend_fer": "Generazione FER", 
-        "legend_base_heat": "Carico Base + Riscaldamento",
-        "legend_ac": "Carico Condizionamento (AC)",
-        "legend_tot_ev": "Carico Totale + Ricarica EV",
+        "chart_hourly_title": "Bilancio di Potenza Orario", "chart_soc_title": "Stato di Carica (SoC)",
+        "chart_h_x": "Ora del Giorno [h]", "chart_h_y_flow": "Energia Oraria [kWh]", "chart_h_y_soc": "State of Charge [%]",
+        "legend_fer": "Generazione FER", "legend_base_heat": "Carico Base + Riscaldamento", "legend_ac": "Carico Condizionamento (AC)", "legend_tot_ev": "Carico Totale + Ricarica EV",
         "legend_soc_h": "SoC Batteria Casa", "legend_grid_on": "Accoppiamento Veicolo Attivo",
         "final_chart_title": "📊 Analisi Comparativa delle Strategie di Autoconsumo",
         "final_chart_sub": "Copertura Energetica ed Autoconsumo Mensile Effettivo nelle 3 Strategie",
         "final_x": "Mese dell'Anno", "final_l1": "Fabbisogno Utenza Lordo", "final_l2": "S1: Monodirezionale Standard", "final_l3": "S2: Smart Charging", "final_l4": "S3: Bidirezionale V2H/V2L",
         "months_labels": ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'],
-        "hp_share": "Quota Riscaldamento",
-        "ac_share": "Quota Condizionamento (AC)"
+        "hp_share": "Quota Riscaldamento", "ac_share": "Quota Condizionamento (AC)",
+        "show_tech_details": "Mostra Dettagli Algoritmo Modulo"
     },
     "ENG": {
         "title": "🌍 RES-Based Home Simulator by Prof. Eng. C. Villante - University of L'Aquila (Beta Version)",
         "subtitle": "Quantitative analysis and geospatial modeling for micro-grids, stationary storage, and V2H ecosystems.",
+        
+        # Global Code Explanation Section
+        "doc_expander_title": "📖 Code Architecture and Data Flows Deep Explanation (Technical Documentation)",
+        "doc_global_text": """
+        ### 🔬 Model Architecture and Simulation Algorithm
+        This simulator executes a coupled dynamic energy analysis with hourly resolution ($24 \\text{ hours} \\times 12 \\text{ months}$ for a total of $288$ representative calculation points) to model the interaction between local renewable sources, thermal and electrical demands of the building, BESS stationary systems, and electric vehicles operating in Vehicle-to-Home (V2H) logic.
+
+        #### 1. Data Ingestion & Sources
+        The application programmatically queries external geospatial APIs in real-time based on the selected geographical coordinates (Lat/Lon):
+        * **Photovoltaic (PV):** Sends *Tilt*, *Azimuth*, and system losses parameters to the **EU-PVGIS (Joint Research Centre) API** to retrieve the actual site-specific monthly solar radiation.
+        * **Micro-Wind (WT):** Downloads the historical annual hourly climate dataset from the **Open-Meteo (Reanalysis Model) API**. It extrapolates wind speed at the chosen hub height ($v_h$) applying the *logarithmic power law*: $v_h = v_{10} \\cdot \\left(\\frac{h}{10}\\right)^{\\alpha}$ (with roughness coefficient $\\alpha = 0.14$).
+        * **Thermal Loads (Energy Signature):** Extracts site-specific historical hourly ambient temperatures (Open-Meteo) to compute Heating/Cooling Degree Days. It shapes winter heating and summer cooling (AC) demands by crossing building energy classes with specific floor area and envelope thermal transmittances.
+
+        #### 2. Logic of the Three Compared Self-Consumption Strategies
+        * **Scenario 1 (Standard Monodirectional):** Passive baseline. The EV charges linearly during the hours checked on the allocation matrix by splitting the total daily driving demand. The stationary BESS absorbs local green surplus and covers domestic deficits until the charge drops to the *Maximum DoD*.
+        * **Scenario 2 (Smart Charging):** Active coordinated management. EV charging is dynamically throttled to track the real-time green generation surplus available on the home network node, minimizing grid dependence. Grid charging occurs only if the battery drops below the safe trip threshold.
+        * **Scenario 3 (Bidirectional V2H/V2L):** Maximum coupled flexibility. The EV battery acts as a bidirectional mobile distributed storage system. When parked and connected to the home network with an operational SoC above the safety limit, it injects energy back into the house to peak-shave and flatten domestic loads (base load + heat pumps), cooperating in parallel or precedence with the stationary BESS.
+        """,
+        
         "params_title": "🎛️ Technical and Economic Parameters Configuration",
         "pv_title": "☀️ Photovoltaic (Max 20 kWp)",
-        "pv_help": "💡 **PV**: 1 kWp requires ~5-7 m². Optimal Tilt in Italy: 30°-35°. Azimuth: 0° South, -90° East, 90° Ovest.",
-        "pv_p": "System Power (kWp)",
-        "pv_t": "Tilt Angle (°)",
-        "pv_az": "Azimuth Angle (°)",
-        "pv_eff": "Module Efficiency (%)",
+        "pv_help": "💡 1 kWp requires ~5-7 m². Optimal Tilt in Italy: 30°-35°.",
+        "pv_tech_expl": "⚙️ **PV Modeling:** The normalized PVGIS output is linearly scaled based on the actual module efficiency input. The hourly profile redistribution follows local solar elevation curves computed for each month.",
         "wind_title": "🌬️ Micro-Wind",
-        "wind_help": "💡 **WT**: Extrapolates wind speed at hub height using logarithmic power law from the Open-Meteo reanalysis dataset.",
-        "wind_p": "Nominal Power (kW)",
-        "wind_h": "Hub height (m)",
+        "wind_help": "💡 Extrapolates wind speed at hub height using logarithmic power law from Open-Meteo reanalysis dataset.",
+        "wind_tech_expl": "⚙️ **WT Modeling:** Computes instantaneous power using the rotor aerodynamic formula: $P = \\min\\left(\\frac{1}{2} \\rho A C_p v_h^3, P_{nom}\\right)$ where $\\rho=1.225\\text{ kg/m}^3$, $A$ is the rotor swept area, and $C_p=0.35$ (real Betz coefficient).",
         "batt_title": "🔋 Stationary Storage (BESS)",
-        "batt_help": "💡 **BESS**: Max DoD (Depth of Discharge) preserves stationary battery cycle life by setting a minimum residual energy constraint.",
-        "batt_c": "Nominal Capacity (kWh)",
-        "batt_eff": "Round-Trip Efficiency (%)",
-        "batt_dod": "Max DoD (%)",
+        "batt_help": "💡 Max DoD preserves stationary battery cycle life by setting a minimum residual energy constraint.",
+        "batt_tech_expl": "⚙️ **BESS Modeling:** Threshold-constrained discrete loop. State of charge ($SoC_t$) is bound by $SoC_{min} = C_{nom} \\cdot (1 - DoD)$ and $SoC_{max} = C_{nom}$. Applies internal quadratic losses for charge/discharge flows.",
         "load_title": "🏠 Load Profile & Building",
-        "load_help": "💡 **Loads**: Computes winter heating and summer cooling (AC) demands by intersecting building class with historical local GIS temperature data.",
-        "load_area": "Floor Area (m²)",
-        "load_class": "Energy Class",
-        "load_occ": "Occupants Number",
-        "load_cop": "Heat Pump Average COP/EER",
+        "load_help": "💡 Computes winter heating and summer cooling demands by intersecting building class with historical GIS temperature data.",
+        "load_tech_expl": "⚙️ **Load Modeling:** Merges a stochastic anthropogenic electricity baseline (lighting and appliances shaped by occupant count) with heat-pump dynamic thermal demands calculated as inversely proportional to the ambient-temperature-dependent hourly $COP$.",
         "eco_title": "💰 Economic Parameters & Grid Tariffs",
-        "eco_help": "💡 **Tariffs**: Insert real energy purchase/selling prices to evaluate system payback period and overall bill savings.",
-        "eco_cost": "Purchased Electricity Cost (€/kWh)",
-        "eco_sell": "Injection Price / RID (€/kWh)",
-        "eco_capex": "Base Installation CAPEX (PV+Wind) (€)",
+        "eco_help": "💡 Insert real energy purchase/selling prices to evaluate system payback period and overall savings.",
+        "eco_tech_expl": "⚙️ **Financial Engine:** Annual cash flow computed as: $\\Delta \\text{CashFlow} = (\\text{SelfConsumption} \\cdot \\text{BuyPrice}) + (\\text{SurplusInjected} \\cdot \\text{SellPrice})$. Simple Payback Period is calculated as $\\frac{\\text{Total Strategy CAPEX}}{\\Delta \\text{CashFlow}}$.",
+        
         "load_ev_check": "Enable Electric Vehicle (EV)",
         "ev_section_title": "🚗 EV Profiling & Charging Infrastructure / V2H Configuration",
-        "ev_help": "💡 **EV & V2H**: Define vehicle characteristics and charging infrastructure. Below is the hourly availability grid (00-23h). When unchecked, the vehicle consumes energy for travel.",
-        "ev_cap": "EV Battery Capacity (kWh)",
-        "ev_km": "Daily Distance (km)",
-        "ev_whkm": "Specific Consumption (Wh/km)",
-        "ev_v2hp": "Wallbox / V2H Inverter Power (kW)",
-        "ev_v2heff": "Converter Efficiency (%)",
-        "ev_soc_init": "Initial SoC (%)",
-        "ev_soc_min": "Safety Trip Minimum SoC (%)",
-        "ev_capex_s1": "S1 Standard Wallbox Extra Cost (€)",
-        "ev_capex_s2": "S2 Smart Wallbox Extra Cost (€)",
-        "ev_capex_s3": "S3 Bidirectional V2H Station Extra Cost (€)",
+        "ev_help": "💡 Below is the hourly availability grid (00-23h). When unchecked, the vehicle is assumed disconnected and traveling, thus consuming stored energy.",
+        "ev_tech_expl": "⚙️ **EV & V2H Modeling:** When traveling (matrix box unchecked), the vehicle drains its internal battery pack uniformly based on the daily driving distance. When parked, the V2H solver handles real-time bidirectional power balancing within continuous wallbox constraints.",
+        
+        "pv_p": "System Power (kWp)", "pv_t": "Tilt Angle (°)", "pv_az": "Azimuth Angle (°)", "pv_eff": "Module Efficiency (%)",
+        "wind_p": "Nominal Power (kW)", "wind_h": "Hub height (m)",
+        "batt_c": "Nominal Capacity (kWh)", "batt_eff": "Round-Trip Efficiency (%)", "batt_dod": "Max DoD (%)",
+        "load_area": "Floor Area (m²)", "load_class": "Energy Class", "load_occ": "Occupants Number", "load_cop": "Heat Pump Average COP/EER",
+        "eco_cost": "Purchased Electricity Cost (€/kWh)", "eco_sell": "Injection Price / RID (€/kWh)", "eco_capex": "Base Installation CAPEX (PV+Wind) (€)",
+        
+        "ev_cap": "EV Battery Capacity (kWh)", "ev_km": "Daily Distance (km)", "ev_whkm": "Specific Consumption (Wh/km)",
+        "ev_v2hp": "Wallbox / V2H Inverter Power (kW)", "ev_v2heff": "Converter Efficiency (%)", "ev_soc_init": "Initial SoC (%)", "ev_soc_min": "Safety Trip Minimum SoC (%)",
+        "ev_capex_s1": "S1 Standard Wallbox Extra Cost (€)", "ev_capex_s2": "S2 Smart Wallbox Extra Cost (€)", "ev_capex_s3": "S3 Bidirectional V2H Station Extra Cost (€)",
         "ev_grid_matrix": "EV Hourly Availability Matrix to Home Network (Checked = Connected to Wallbox)",
-        "gis_title": "📍 GIS Site Localization",
-        "gis_search": "Search Municipality or Coordinates",
-        "gis_btn": "🔍 Update Site Map",
-        "gis_active": "**Active Site:**",
+        
+        "gis_title": "📍 GIS Site Localization", "gis_search": "Search Municipality or Coordinates", "gis_btn": "🔍 Update Site Map", "gis_active": "**Active Site:**",
         "run_btn": "⚡ Run Dynamic Energy Simulation",
         "results_title": "📊 Simulation Output & Performance Indicators",
-        "results_help": "🔬 **KPI Interpretation**: Coupled multi-scenario analysis. Smart Charging shapes loads to track green local production; V2H provides full bidirectional flexibility by injecting power back to the house.",
-        "kpi_ac": "Self-Consumption",
-        "kpi_bill_savings": "Economic Savings",
-        "kpi_payback": "Payback Period",
-        "chart_gen_title": "Monthly Generation Profiles",
-        "chart_load_title": "Monthly Demand Profiles (Heating vs Cooling)",
-        "chart_x_month": "Month",
-        "chart_y_kwh": "Energy [kWh]",
+        "results_help": "🔬 Smart Charging shapes loads to track green local production; V2H provides full bidirectional flexibility by injecting power back to the house.",
+        "kpi_ac": "Self-Consumption", "kpi_bill_savings": "Economic Savings", "kpi_payback": "Payback Period",
+        "chart_gen_title": "Monthly Generation Profiles", "chart_load_title": "Monthly Demand Profiles (Heating vs Cooling)",
+        "chart_x_month": "Month", "chart_y_kwh": "Energy [kWh]",
         "season_title": "📈 Hourly Seasonal Dynamics on Average Days",
-        "season_help": "🔬 **Hourly Charts Interpretation**: For each season, a typical average day is simulated. Left charts display immediate power balance profiles; right charts show the state of charge (SoC) profiles.",
+        "season_help": "🔬 Left charts display immediate power balance profiles; right charts show the state of charge (SoC) profiles.",
         "inv": "Winter", "pri": "Spring", "est": "Summer", "aut": "Autumn",
         "inv_t": "❄️ Typical Winter Day (January)", "pri_t": "🌱 Typical Spring Day (April)", "est_t": "☀️ Typical Summer Day (July)", "aut_t": "🍂 Typical Autumn Day (October)",
-        "chart_hourly_title": "Hourly Power Balance",
-        "chart_soc_title": "State of Charge (SoC)",
-        "chart_h_x": "Time of Day [h]",
-        "chart_h_y_flow": "Hourly Energy [kWh]",
-        "chart_h_y_soc": "State of Charge [%]",
-        "legend_fer": "RES Generation", 
-        "legend_base_heat": "Base Load + Heating",
-        "legend_ac": "Cooling Load (AC)",
-        "legend_tot_ev": "Total Load + EV Charge",
+        "chart_hourly_title": "Hourly Power Balance", "chart_soc_title": "State of Charge (SoC)",
+        "chart_h_x": "Time of Day [h]", "chart_h_y_flow": "Hourly Energy [kWh]", "chart_h_y_soc": "State of Charge [%]",
+        "legend_fer": "RES Generation", "legend_base_heat": "Base Load + Heating", "legend_ac": "Cooling Load (AC)", "legend_tot_ev": "Total Load + EV Charge",
         "legend_soc_h": "Home BESS SoC", "legend_grid_on": "Vehicle Connected",
         "final_chart_title": "📊 Comparative Analysis of Self-Consumption Strategies",
         "final_chart_sub": "Energy Coverage and Effective Monthly Self-Consumption across the 3 Strategies",
         "final_x": "Month of the Year", "final_l1": "Gross Load", "final_l2": "S1: Standard Monodirectional", "final_l3": "S2: Smart Charging", "final_l4": "S3: Bidirectional V2H/V2L",
         "months_labels": ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dic'],
-        "hp_share": "Heating Share",
-        "ac_share": "Cooling Share (AC)"
+        "hp_share": "Heating Share", "ac_share": "Cooling Share (AC)",
+        "show_tech_details": "Show Component Technical Insights"
     }
 }
 
@@ -219,6 +225,10 @@ T = LANG_DICT[lang]
 
 st.title(T["title"])
 st.caption(T["subtitle"])
+
+# --- SEZIONE DI SPIEGAZIONE AVANZATA INIZIALE ESPANDIBILE ---
+with st.expander(T["doc_expander_title"], expanded=False):
+    st.markdown(T["doc_global_text"])
 
 # --- INITIALIZATION ---
 if "lat" not in st.session_state: st.session_state.lat = 42.3498
@@ -230,6 +240,8 @@ exp_pv, exp_wind, exp_batt, exp_load, exp_eco = st.columns(5)
 
 with exp_pv.expander(T["pv_title"], expanded=False):
     st.markdown(f"<div class='custom-note'>{T['pv_help']}</div>", unsafe_allow_html=True)
+    if st.checkbox(T["show_tech_details"], key="chk_pv_tech"):
+        st.markdown(T["pv_tech_expl"])
     pv_power = st.number_input(T["pv_p"], min_value=1, max_value=20, value=5, step=1)
     pv_tilt = st.number_input(T["pv_t"], min_value=0, max_value=90, value=35, step=5)
     pv_azimuth = st.number_input(T["pv_az"], min_value=-180, max_value=180, value=0, step=5)
@@ -237,11 +249,15 @@ with exp_pv.expander(T["pv_title"], expanded=False):
 
 with exp_wind.expander(T["wind_title"], expanded=False):
     st.markdown(f"<div class='custom-note'>{T['wind_help']}</div>", unsafe_allow_html=True)
+    if st.checkbox(T["show_tech_details"], key="chk_wind_tech"):
+        st.markdown(T["wind_tech_expl"])
     wind_power_kw = st.number_input(T["wind_p"], min_value=1, max_value=20, value=2, step=1)
     hub_height = st.number_input(T["wind_h"], min_value=10, max_value=200, value=80, step=5)
 
 with exp_batt.expander(T["batt_title"], expanded=False):
     st.markdown(f"<div class='custom-note'>{T['batt_help']}</div>", unsafe_allow_html=True)
+    if st.checkbox(T["show_tech_details"], key="chk_batt_tech"):
+        st.markdown(T["batt_tech_expl"])
     battery_capacity_kwh = st.number_input(T["batt_c"], min_value=0, max_value=100, value=15, step=1)
     battery_eff = st.number_input(T["batt_eff"], min_value=70, max_value=100, value=92, step=1) / 100.0
     dod_limit = st.number_input(T["batt_dod"], min_value=50, max_value=100, value=80, step=5)
@@ -250,6 +266,8 @@ with exp_batt.expander(T["batt_title"], expanded=False):
 
 with exp_load.expander(T["load_title"], expanded=False):
     st.markdown(f"<div class='custom-note'>{T['load_help']}</div>", unsafe_allow_html=True)
+    if st.checkbox(T["show_tech_details"], key="chk_load_tech"):
+        st.markdown(T["load_tech_expl"])
     house_area = st.number_input(T["load_area"], min_value=40, max_value=300, value=120, step=10)
     building_class = st.selectbox(T["load_class"], ["A4", "A3", "A2", "A1", "B", "C", "D"])
     occupants = st.number_input(T["load_occ"], min_value=1, max_value=8, value=3, step=1)
@@ -258,6 +276,8 @@ with exp_load.expander(T["load_title"], expanded=False):
 
 with exp_eco.expander(T["eco_title"], expanded=False):
     st.markdown(f"<div class='custom-note'>{T['eco_help']}</div>", unsafe_allow_html=True)
+    if st.checkbox(T["show_tech_details"], key="chk_eco_tech"):
+        st.markdown(T["eco_tech_expl"])
     cost_electricity = st.number_input(T["eco_cost"], min_value=0.01, max_value=2.00, value=0.28, step=0.01, format="%.2f")
     val_injection = st.number_input(T["eco_sell"], min_value=0.00, max_value=2.00, value=0.08, step=0.01, format="%.2f")
     capex_base = st.number_input(T["eco_capex"], min_value=1000, max_value=100000, value=9500, step=500)
@@ -267,6 +287,8 @@ ev_hours_status = [False] * 24
 if has_ev:
     st.markdown(f"### {T['ev_section_title']}")
     st.markdown(f"<div class='custom-note'>{T['ev_help']}</div>", unsafe_allow_html=True)
+    if st.checkbox(T["show_tech_details"], key="chk_ev_tech"):
+        st.markdown(T["ev_tech_expl"])
         
     c_p1, c_p2, c_p3, c_p4, c_p5, c_p6, c_p7 = st.columns(7)
     ev_capacity_kwh = c_p1.number_input(T["ev_cap"], min_value=20, max_value=150, value=60, step=5)
