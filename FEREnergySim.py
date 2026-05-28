@@ -56,7 +56,7 @@ LANG_DICT = {
 
         #### 1. Origine dei Dati e Ingestione (Data Ingestion)
         * **Fotovoltaico (PV):** L'applicazione interroga le API **EU-PVGIS** per ricavare l'irraggiamento mensile tipico, ridistribuendolo poi su base oraria annua (8760 punti) legandolo alla geometria solare del sito (elevazione ed equazione del tempo).
-        * **Micro-Eolico (WT):** Scarica il profilo orario annuale completo a 8760 punti di velocità del vento a 10m dalle API **Open-Meteo (Reanalysis)**, riscalandolo all'altezza mozzo impostata tramite legge logaritmica.
+        * **Micro-Eolico (WT):** Scarica il profilazione oraria annuale completo a 8760 punti di velocità del vento a 10m dalle API **Open-Meteo (Reanalysis)**, riscalandolo all'altezza mozzo impostata tramite legge logaritmica.
         * **Firma Termica dell'Edificio:** Genera la richiesta oraria di climatizzazione invernale ed estiva per tutte le 8760 ore dell'anno incrociando la temperatura esterna oraria del dataset Open-Meteo con le dispersioni geometriche della classe energetica dell'involucro edilizio.
 
         #### 2. Logica dei Tre Scenari di Controllo Comparati
@@ -104,10 +104,10 @@ LANG_DICT = {
         "params_title": "🎛️ Configurazione Parametri Tecnici ed Economici",
         "pv_title": "☀️ Fotovoltaico (Max 20 kWp)",
         "pv_help": "💡 1 kWp occupa ~5-7 m². Inclinazione ottimale in Italia: 30°-35°.",
-        "pv_tech_expl": "⚙️ **Modellazione PV:** L'output normalizzato di PVGIS viene riscalato linearmente sul rendimento del modulo e distribuito geometricamente sulle 8760 ore dell'anno.",
+        "pv_tech_expl": "⚙️ **Modellazione PV:** L'output PVGIS viene riscalato sul rendimento del modulo e distribuito geometricamente sulle 8760 ore dell'anno.",
         "wind_title": "🌬️ Micro-Eolico",
         "wind_help": "💡 Profilo orario a 8760 punti riscalato con la legge logaritmica sull'altezza mozzo.",
-        "wind_tech_expl": "⚙️ **Modellazione WT:** Calcola la potenza oraria istantanea applicando l'equazione cinetica del vento sul rotore con limite di Betz reale.",
+        "wind_tech_expl": "⚙️ **Modellazione WT:** Calcola la potenza oraria applicando l'equazione cinetica del vento sul rotore con limite di Betz reale.",
         "batt_title": "🔋 Accumulo Stazionario (BESS)",
         "batt_help": "💡 Il DoD Max preserva la vita dell'accumulo vincolando la carica minima oraria residua.",
         "batt_tech_expl": "⚙️ **Modellazione BESS:** Algoritmo ricorsivo orario ad accumulo di carica con rendimento round-trip applicato a ogni variazione energetica.",
@@ -195,7 +195,7 @@ LANG_DICT = {
         * **Monthly Demand Profiles (Right):** Visualizes seasonal load variations. Winter peaks track Heat Pump demand, while summer ones represent AC cooling loads.
         """,
         
-        "guide_hourly_charts_title": "⏱ ...",
+        "guide_hourly_charts_title": "⏱️ Guide to Intra-Day Analysis on Selected Real Typical Days",
         "guide_hourly_charts_text": """
         These plots focus on dynamic system responses across **4 specific real calendar days**, chosen as seasonal representatives:
         * **Winter (Jan 15th):** Low solar radiation, massive heat pump thermal load.
@@ -397,7 +397,6 @@ def get_8760_profiles():
         m_energy = sol_m[m_idx]
         for d in range(m_days):
             for h in range(24):
-                # Modellazione geometrica oraria della campana solare
                 factor = max(0, math.sin((h - 6) / 12 * math.pi))
                 pv_8760.append((m_energy / m_days) * factor / 6.5)
         m_idx += 1
@@ -430,11 +429,9 @@ def get_8760_profiles():
     
     for idx, t_ext in enumerate(temp_2m):
         h = idx % 24
-        # Fattore stocastico antropico giornaliero
         base_factor = (0.8 + 0.5 * math.exp(-((h - 20) ** 2) / 12))
         p_base = base_load_annual * base_factor
         
-        # Pompe di calore orarie indotte dal clima
         p_heat = max(0, 20 - t_ext) * coeff * house_area / 1000 / heat_pump_cop / 24
         p_cool = max(0, t_ext - 25) * (coeff * 0.5) * house_area / 1000 / (heat_pump_cop * 0.9) / 24
         
@@ -453,13 +450,21 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
     sim = get_8760_profiles()
     
     # 4 Giorni feriali reali di dettaglio impostati sul calendario sequenziale (ore annue)
-    # Giorni indicativi reali estratti dall'anno sequenziale:
     hours_indices = {
         T["inv"]: list(range(336, 360)),    # 15 Gennaio
         T["pri"]: list(range(2520, 2544)),  # 15 Aprile
         T["est"]: list(range(4680, 4704)),  # 15 Luglio
         T["aut"]: list(range(6888, 6912))   # 15 Ottobre
     }
+
+    # Definizione corretta della domanda chilometrica EV annuale (365 giorni)
+    annual_ev_kwh = (daily_ev_demand_kwh * 365) if has_ev else 0.0
+
+    # Vettori per memorizzare l'autoconsumo orario effettivo e fare i bilanci mensili reali
+    ac_s1_hourly = [0.0] * 8760
+    ac_s2_hourly = [0.0] * 8760
+    ac_s3_hourly = [0.0] * 8760
+    total_load_with_ev_s1 = [0.0] * 8760
 
     # --- SIMULAZIONE SCENARIO 1: Monodirezionale Standard ---
     soc_h_s1 = soc_min
@@ -470,36 +475,37 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
     
     for i in range(8760):
         h = i % 24
-        # Drenaggio chilometrico spalmato fuori casa
         if has_ev and not ev_hours_status[h] and h == 12: 
             current_ev_soc_s1 = max(ev_capacity_kwh*0.1, current_ev_soc_s1 - daily_ev_demand_kwh)
             
         ev_load = (daily_ev_demand_kwh / ev_hours_status.count(True)) if (has_ev and ev_hours_status[h]) else 0.0
         tot_load = sim["load"][i] + ev_load
+        total_load_with_ev_s1[i] = tot_load
         
-        # Logica ricarica passiva EV se connesso
         if has_ev and ev_hours_status[h] and ev_load > 0:
             current_ev_soc_s1 = min(ev_capacity_kwh, current_ev_soc_s1 + ev_load * v2h_eff)
             
         prod = sim["fer"][i]
         diretto = min(prod, tot_load)
-        ac_s1 += diretto
+        local_ac = diretto
         surplus, deficit = prod - diretto, tot_load - diretto
         
         if surplus > 0 and battery_capacity_kwh > 0:
             ch = min(surplus * battery_eff, soc_max - soc_h_s1)
             soc_h_s1 += ch
             surplus -= (ch / battery_eff)
-            ac_s1 += ch
+            local_ac += ch
         sell_s1 += surplus
         
         if deficit > 0 and battery_capacity_kwh > 0:
             dh = min(deficit, (soc_h_s1 - soc_min) * battery_eff)
             soc_h_s1 -= (dh / battery_eff)
-            ac_s1 += dh
+            local_ac += dh
             deficit -= dh
         grid_s1 += deficit
         
+        ac_s1 += local_ac
+        ac_s1_hourly[i] = local_ac
         soc_track_h_s1.append(soc_h_s1)
         soc_track_ev_s1.append(current_ev_soc_s1)
 
@@ -517,36 +523,37 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
             
         prod, house_load = sim["fer"][i], sim["load"][i]
         diretto = min(prod, house_load)
-        ac_s2 += diretto
+        local_ac = diretto
         surplus = prod - diretto
         
-        # Gestione intelligente surplus verso BESS e EV
         if surplus > 0:
             if battery_capacity_kwh > 0 and soc_h_s2 < soc_max:
                 ch = min(surplus * battery_eff, soc_max - soc_h_s2)
                 soc_h_s2 += ch
                 surplus -= (ch / battery_eff)
-                ac_s2 += ch
+                local_ac += ch
             if has_ev and ev_hours_status[h] and surplus > 0 and current_ev_soc_s2 < ev_capacity_kwh:
                 ch_ev = min(min(v2h_power_kw, surplus) * v2h_eff, ev_capacity_kwh - current_ev_soc_s2)
                 current_ev_soc_s2 += ch_ev
                 surplus -= (ch_ev / v2h_eff)
-                ac_s2 += ch_ev
+                local_ac += ch_ev
             sell_s2 += surplus
+            deficit = 0
         else:
             deficit = house_load - prod
             if battery_capacity_kwh > 0 and soc_h_s2 > soc_min:
                 dh = min(deficit, (soc_h_s2 - soc_min) * battery_eff)
                 soc_h_s2 -= (dh / battery_eff)
-                ac_s2 += dh
+                local_ac += dh
                 deficit -= dh
-            # Ricarica minima forzata da rete solo per sicurezza viaggio
             if has_ev and ev_hours_status[h] and current_ev_soc_s2 < ev_soc_travel_min:
                 f_ch = min(v2h_power_kw, (ev_soc_travel_min - current_ev_soc_s2) / v2h_eff)
                 current_ev_soc_s2 += f_ch * v2h_eff
                 deficit += f_ch
             grid_s2 += deficit
             
+        ac_s2 += local_ac
+        ac_s2_hourly[i] = local_ac
         soc_track_h_s2.append(soc_h_s2)
         soc_track_ev_s2.append(current_ev_soc_s2)
 
@@ -564,7 +571,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
             
         prod, house_load = sim["fer"][i], sim["load"][i]
         diretto = min(prod, house_load)
-        ac_s3 += diretto
+        local_ac = diretto
         surplus, deficit = prod - diretto, house_load - diretto
         
         if surplus > 0:
@@ -572,32 +579,35 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
                 ch_ev = min(min(v2h_power_kw, surplus) * v2h_eff, ev_capacity_kwh - current_ev_soc_s3)
                 current_ev_soc_s3 += ch_ev
                 surplus -= (ch_ev / v2h_eff)
-                ac_s3 += ch_ev
+                local_ac += ch_ev
             if battery_capacity_kwh > 0 and soc_h_s3 < soc_max:
                 ch = min(surplus * battery_eff, soc_max - soc_h_s3)
                 soc_h_s3 += ch
                 surplus -= (ch / battery_eff)
-                ac_s3 += ch
+                local_ac += ch
             sell_s3 += surplus
         elif deficit > 0:
-            # Algoritmo V2H Peak Shaving: drena dall'auto per alimentare l'edificio
             if has_ev and ev_hours_status[h] and current_ev_soc_s3 > ev_soc_travel_min:
                 dh_v2h = min(min(v2h_power_kw, deficit), (current_ev_soc_s3 - ev_soc_travel_min) * v2h_eff)
                 current_ev_soc_s3 -= (dh_v2h / v2h_eff)
                 deficit -= dh_v2h
-                ac_s3 += dh_v2h
+                local_ac += dh_v2h
             if deficit > 0 and battery_capacity_kwh > 0 and soc_h_s3 > soc_min:
                 dh = min(deficit, (soc_h_s3 - soc_min) * battery_eff)
                 soc_h_s3 -= (dh / battery_eff)
-                ac_s3 += dh
+                local_ac += dh
                 deficit -= dh
             grid_s3 += deficit
             
+        ac_s3 += local_ac
+        ac_s3_hourly[i] = local_ac
         soc_track_h_s3.append(soc_h_s3)
         soc_track_ev_s3.append(current_ev_soc_s3)
 
-    # Aggregazione mensile per grafici storici stabili
-    monthly_load_agg, monthly_ac_s1_agg, monthly_ac_s2_agg, monthly_ac_s3_agg = [0]*12, [0]*12, [0]*12, [0]*12
+    # Aggregazione mensile esatta per grafici storici stabili basati sulle 8760 ore reali
+    monthly_load_agg = [0]*12
+    monthly_load_with_ev_s1_agg = [0]*12
+    monthly_ac_s1_agg, monthly_ac_s2_agg, monthly_ac_s3_agg = [0]*12, [0]*12, [0]*12
     monthly_sol_agg, monthly_wind_agg = [0]*12, [0]*12
     days_in_months = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     
@@ -605,15 +615,16 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
     for m in range(12):
         h_count = days_in_months[m] * 24
         monthly_load_agg[m] = sum(sim["load"][c_idx : c_idx + h_count])
+        monthly_load_with_ev_s1_agg[m] = sum(total_load_with_ev_s1[c_idx : c_idx + h_count])
         monthly_sol_agg[m] = sum(sim["pv"][c_idx : c_idx + h_count])
         monthly_wind_agg[m] = sum(sim["wt"][c_idx : c_idx + h_count])
-        # Approssimazione coerente per la visualizzazione dell'autoconsumo
-        monthly_ac_s1_agg[m] = min(monthly_load_agg[m]*0.85, sum(sim["pv"][c_idx : c_idx + h_count])*0.42 + 20)
-        monthly_ac_s2_agg[m] = min(monthly_load_agg[m]*0.92, monthly_ac_s1_agg[m] * 1.25)
-        monthly_ac_s3_agg[m] = min(monthly_load_agg[m]*0.98, monthly_ac_s2_agg[m] * 1.38)
+        
+        monthly_ac_s1_agg[m] = sum(ac_s1_hourly[c_idx : c_idx + h_count])
+        monthly_ac_s2_agg[m] = sum(ac_s2_hourly[c_idx : c_idx + h_count])
+        monthly_ac_s3_agg[m] = sum(ac_s3_hourly[c_idx : c_idx + h_count])
         c_idx += h_count
 
-    # Finanza 8760h
+    # Finanza 8760h coerente
     savings_s1 = (ac_s1 * cost_electricity) + (sell_s1 * val_injection)
     savings_s2 = (ac_s2 * cost_electricity) + (sell_s2 * val_injection)
     savings_s3 = (ac_s3 * cost_electricity) + (sell_s3 * val_injection)
@@ -626,7 +637,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
     payback_s2 = capex_s2_tot / savings_s2 if savings_s2 > 0 else 99
     payback_s3 = capex_s3_tot / savings_s3 if savings_s3 > 0 else 99
     
-    total_demand_annual = sum(sim["load"]) + (annual_ev_kwh if has_ev else 0)
+    total_demand_annual = sum(sim["load"]) + annual_ev_kwh
     total_generation_annual = sum(sim["fer"])
 
     # --- RENDERIZZAZIONE INTERFACCIA RISULTATI ---
@@ -643,7 +654,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
     sc_rate_s3 = (ac_s3 / total_generation_annual) * 100 if total_generation_annual > 0 else 0
     ss_rate_s3 = (ac_s3 / total_demand_annual) * 100 if total_demand_annual > 0 else 0
 
-    tab1, tab2, tab3 = st.tabs(["🛑 Scenario 1: Monodirezionale Standard", "☀️ Scenario 2: Smart Charging", "🔄 Scenario 3: Bidirezionale V2H"])
+    tab1, tab2, tab3 = st.tabs(["🛑 Scenario 1: Monodirezionale Standard", "☀️ Scenario 2: Smart Charging", "🔄 Scenario 3: Bidirectional V2H"])
     with tab1:
         st.markdown("### 📊 Bilancio Energetico - Configurazione Passiva")
         c1, c2, c3, c4 = st.columns(4)
@@ -693,7 +704,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         st.pyplot(fig_mac_gen)
     with col_g2:
         fig_mac_load, ax_mac_load = plt.subplots(figsize=(6, 2.2), dpi=200)
-        ax_mac_load.plot(range(1, 13), monthly_load_agg, color="#DC2626", lw=1.6)
+        ax_mac_load.plot(range(1, 13), monthly_load_with_ev_s1_agg, color="#DC2626", lw=1.6)
         setup_plot_style(ax_mac_load, T["chart_load_title"], T["chart_x_month"], T["chart_y_kwh"])
         st.pyplot(fig_mac_load)
 
@@ -710,14 +721,13 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         with col_chart1:
             fig_f1, ax_f1 = plt.subplots(figsize=(6, 2.3), dpi=200)
             ax_f1.plot(range(24), [sim["fer"][idx] for idx in idx_list], label=T["legend_fer"], color="#059669", lw=1.4)
-            ax_f1.plot(range(24), [sim["load"][idx] for idx in idx_list], label="Carico Abitazione", color="#475569", lw=1.2)
+            ax_f1.plot(range(24), [sim["load"][idx] for idx in idx_list], label="Carico Abitazione Base", color="#475569", lw=1.2)
             setup_plot_style(ax_f1, f"{T['chart_hourly_title']}", T["chart_h_x"], "Potenza [kW]")
             ax_f1.legend(fontsize=6.5, frameon=False, loc="upper left")
             st.pyplot(fig_f1)
             
         with col_chart2:
             fig_f2, ax_f2 = plt.subplots(figsize=(6, 2.3), dpi=200)
-            # Normalizzazione in percentuale dei vettori di accumulo sui giorni reali selezionati
             h_soc_pct = [(soc_track_h_s3[idx] / battery_capacity_kwh * 100) if battery_capacity_kwh > 0 else 0 for idx in idx_list]
             ev_soc_pct = [(soc_track_ev_s3[idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
             
@@ -739,7 +749,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
     with col_ann1:
         fig_ann_flows, ax_ann_flows = plt.subplots(figsize=(7, 2.5), dpi=200)
         ax_ann_flows.plot(range(8760), sim["fer"], label="Generazione FER Totale", color="#10B981", alpha=0.6, lw=0.4)
-        ax_ann_flows.plot(range(8760), sim["load"], label="Carico Edificio", color="#EF4444", alpha=0.5, lw=0.4)
+        ax_ann_flows.plot(range(8760), total_load_with_ev_s1, label="Carico Utente Lordo (Edificio + EV)", color="#EF4444", alpha=0.5, lw=0.4)
         setup_plot_style(ax_ann_flows, "Andamento Continuo Potenze (8760 h)", "Ore dell'Anno [1-8760]", "Potenza [kW]")
         ax_ann_flows.legend(fontsize=6.5, frameon=False, loc="upper right")
         st.pyplot(fig_ann_flows)
@@ -761,7 +771,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
     st.subheader(T["final_chart_title"])
     fig12, ax12 = plt.subplots(figsize=(12, 2.4), dpi=200)
     x_idx = range(1, 13)
-    ax12.bar([x - 0.22 for x in x_idx], monthly_load_agg, width=0.18, label=T["final_l1"], color='#94A3B8', alpha=0.25)
+    ax12.bar([x - 0.22 for x in x_idx], monthly_load_with_ev_s1_agg, width=0.18, label=T["final_l1"], color='#94A3B8', alpha=0.25)
     ax12.bar([x - 0.07 for x in x_idx], monthly_ac_s1_agg, width=0.15, label=T["final_l2"], color='#EF4444', alpha=0.7)
     ax12.bar([x + 0.07 for x in x_idx], monthly_ac_s2_agg, width=0.15, label=T["final_l3"], color='#3B82F6', alpha=0.8)
     ax12.bar([x + 0.22 for x in x_idx], monthly_ac_s3_agg, width=0.15, label=T["final_l4"], color='#10B981', alpha=0.9)
