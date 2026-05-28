@@ -457,11 +457,11 @@ def get_8760_profiles():
 
         # Cooling demand active above 25°C
         # Includes latent thermal component
-        cooling_gain_factor = 0.75
-        latent_factor = 1.10
+        cooling_gain_factor = 1.35
+        latent_factor = 1.35
 
         p_cool = (
-            max(0, t_ext - 25)
+            max(0, t_ext - 23)
             * (coeff * cooling_gain_factor)
             * house_area
             / 1000
