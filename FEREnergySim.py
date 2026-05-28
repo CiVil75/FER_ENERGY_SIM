@@ -819,16 +819,22 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
                 ax_f2.text(12, 10, "Azzurro: EV Connesso in Rete", fontsize=6, color="#0284C7", ha='center', style='italic')
 
             ax_f2.plot(range(24), h_soc_pct, label="SoC Casa", color='#D97706', lw=1.5, marker='s', markersize=2)
-            
+
             if has_ev:
-                ev_soc_pct = [(soc_track_ev_s3[idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
-                ax_f2.plot(range(24), ev_soc_pct, label="SoC EV (Viaggio + Ricarica)", color='#10B981', lw=1.5, marker='o', markersize=2)
-            
-            setup_plot_style(ax_f2, f"{T['chart_soc_title']}", T["chart_h_x"], "State of Charge [%]")
-            ax_f2.set_ylim(-5, 105)
-            ax_f2.set_xlim(-0.5, 23.5)
-            ax_f2.legend(fontsize=6, frameon=True, loc="lower right")
-            st.pyplot(fig_f2)
+                ev_soc_s1_pct = [(v / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for v in soc_track_ev_s1]
+                ev_soc_s2_pct = [(v / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for v in soc_track_ev_s2]
+                ev_soc_s3_pct = [(v / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for v in soc_track_ev_s3]
+
+                ax_ann_soc.plot(range(8760), ev_soc_s1_pct, label="SoC EV (S1 Standard)", color="#EF4444", lw=0.4,
+                                alpha=0.6)
+                ax_ann_soc.plot(range(8760), ev_soc_s2_pct, label="SoC EV (S2 Smart)", color="#3B82F6", lw=0.4,
+                                alpha=0.6)
+                ax_ann_soc.plot(range(8760), ev_soc_s3_pct, label="SoC EV (S3 V2H)", color="#10B981", lw=0.4, alpha=0.7)
+                setup_plot_style(ax_f2, f"{T['chart_soc_title']}", T["chart_h_x"], "State of Charge [%]")
+                ax_f2.set_ylim(-5, 105)
+                ax_f2.set_xlim(-0.5, 23.5)
+                ax_f2.legend(fontsize=6, frameon=True, loc="lower right")
+                st.pyplot(fig_f2)
 
     # --- SEZIONE: GRAFICI ANNUALI CONTINUI A 8760 ORE ---
     st.markdown("---")
