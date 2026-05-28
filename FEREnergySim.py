@@ -15,7 +15,7 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700&display=swap');
     
-    html, body, [data-testid="stAppViewContainer"], .main {
+    html, body, [data-testid=\"stAppViewContainer\"], .main {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
     }
     .reportview-container .main .block-container { padding-top: 0.5rem; padding-bottom: 1rem; }
@@ -56,20 +56,7 @@ LANG_DICT = {
 
         #### 1. Origine dei Dati e Ingestione (Data Ingestion)
         * **Fotovoltaico (PV):** L'applicazione interroga le API **EU-PVGIS** per ricavare l'irraggiamento mensile tipico, ridistribuendolo poi su base oraria annua (8760 punti) legandolo alla geometria solare del sito (elevazione ed equazione del tempo).
-        * **Micro-Eolico (WT) e Temperature Esterne:** Scarica serie climatiche storiche orarie annuali (8760 punti) tramite le API **Open‑Meteo Archive API (ERA5 Reanalysis)**:
-        https://archive-api.open-meteo.com
-
-        Variabili utilizzate:
-        - `temperature_2m`
-        - `windspeed_10m`
-
-        Le serie climatiche vengono utilizzate per:
-        - modellazione HVAC dinamica;
-        - generazione carichi termici;
-        - simulazione microeolico;
-        - simulazione continua annuale 8760h.
-
-        I profili vento vengono inoltre riscalati all'altezza mozzo tramite legge logaritmica.
+        * **Micro-Eolico (WT):** Scarica il profilazione oraria annuale completo a 8760 punti di velocità del vento a 10m dalle API **Open-Meteo (Reanalysis)**, riscalandolo all'altezza mozzo impostata tramite legge logaritmica.
         * **Firma Termica dell'Edificio:** Genera la richiesta oraria di climatizzazione invernale ed estiva per tutte le 8760 ore dell'anno incrociando la temperatura esterna oraria del dataset Open-Meteo con le dispersioni geometriche della classe energetica dell'involucro edilizio.
 
         #### 2. Logica dei Tre Scenari di Controllo Comparati
@@ -104,7 +91,7 @@ LANG_DICT = {
         * **Primavera (15 Aprile - Lunedì):** Ottimo bilancio FER, riscaldamento quasi nullo.
         * **Estate (15 Luglio - Lunedì):** Picco solare a mezzogiorno, carico AC concentrato nelle ore pomeridiane.
         * **Autunno (15 Ottobre - Martedì):** Transizione climatica con intermittenza meteorologica.
-        *I grafici di destra mostrano l'evoluzione dei SoC evidenziando la carica/scarica delle diverse strategie della batteria dell'auto.*
+        *I grafici di destra mostrano l'evoluzione dei SoC evidenziando la scarica attiva serale della batteria dell'auto nel caso del V2H (Scenario 3).*
         """,
         
         "guide_8760_charts_title": "📈 Guida all'Analisi delle Curve Continue Annuali (8760 ore)",
@@ -132,7 +119,7 @@ LANG_DICT = {
         "eco_tech_expl": "⚙️ **Analisi Finanziaria:** Integra orariamente i risparmi in bolletta causati dall'autoconsumo e i profitti derivanti dall'energia immessa.",
         
         "load_ev_check": "Abilita Veicolo Elettrico (EV)",
-        "ev_section_title": "🚗 Profilazione EV & Configurazione Infrastruttura di Ricarica / V2H Configuration",
+        "ev_section_title": "🚗 Profilazione EV & Configurazione Infrastruttura di Ricarica / V2H",
         "ev_help": "💡 Spunta le ore in cui l'auto è connessa alla Wallbox domestica. Nelle ore non spuntate l'auto si assume in movimento.",
         "ev_tech_expl": "⚙️ **Modellazione EV & V2H:** Quando disconnesso, il veicolo drena energia dalla batteria interna in base ai km giornalieri; quando è connesso partecipa al bilanciamento del nodo energetico domestico.",
         
@@ -162,11 +149,9 @@ LANG_DICT = {
         "chart_h_x": "Ora del Giorno [h]", "chart_h_y_flow": "Potenza/Energia Oraria [kWh]", "chart_h_y_soc": "State of Charge [%]",
         "legend_fer": "Generazione FER", "legend_base_heat": "Carico Base + Riscaldamento", "legend_ac": "Carico Condizionamento (AC)", "legend_tot_ev": "Carico Totale + Ricarica EV",
         "legend_soc_h": "SoC Batteria Casa", "legend_grid_on": "Accoppiamento Veicolo Attivo",
-        "legend_ac_power": "Potenza Richiesta Climatizzazione",
-        "legend_ev_conn": "EV Connesso alla Wallbox",
         "final_chart_title": "📊 Analisi Comparativa delle Strategie di Autoconsumo sull'Anno",
         "final_chart_sub": "Copertura Energetica ed Autoconsumo Mensile Effettivo nelle Strategie Simulation",
-        "final_x": "Mese dell'Anno", "final_l1": "Fabbisogno Utenza Lordo", "final_l2": "S1: Monodirezionale Standard", "final_l3": "S2: Smart Charging", "final_l4": "S3: Bidirectional V2H/V2L",
+        "final_x": "Mese dell'Anno", "final_l1": "Fabbisogno Utenza Lordo", "final_l2": "S1: Monodirezionale Standard", "final_l3": "S2: Smart Charging", "final_l4": "S3: Bidirezionale V2H/V2L",
         "months_labels": ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'],
         "hp_share": "Quota Riscaldamento", "ac_share": "Quota Condizionamento (AC)",
         "show_tech_details": "Mostra Dettagli Algoritmo Modulo"
@@ -274,9 +259,6 @@ LANG_DICT = {
         "chart_h_x": "Time of Day [h]", "chart_h_y_flow": "Hourly Power/Energy [kWh]", "chart_h_y_soc": "State of Charge [%]",
         "legend_fer": "RES Generation", "legend_base_heat": "Base Load + Heating", "legend_ac": "Cooling Load (AC)", "legend_tot_ev": "Total Load + EV Charge",
         "legend_soc_h": "Home BESS SoC", "legend_grid_on": "Vehicle Connected",
-        "legend_ac_power": "Cooling Power Demand",
-        "legend_ev_conn": "EV Connected to Wallbox",
-        "energy_balance_title": "Advanced Energy Balance",
         "final_chart_title": "📊 Comparative Analysis of Self-Consumption Strategies over the Year",
         "final_chart_sub": "Energy Coverage and Effective Monthly Self-Consumption across Simulation Scenarios",
         "final_x": "Month of the Year", "final_l1": "Gross Load", "final_l2": "S1: Standard Monodirectional", "final_l3": "S2: Smart Charging", "final_l4": "S3: Bidirectional V2H/V2L",
@@ -424,8 +406,8 @@ def get_8760_profiles():
         wind_10m = meteo_res["hourly"]["windspeed_10m"]
         temp_2m = meteo_res["hourly"]["temperature_2m"]
     except:
-        wind_10m = [4.5 + 2*math.sin(i/100) for i in range(len(sim["fer"]))]
-        temp_2m = [12 + 10*math.sin(i/500) for i in range(len(sim["fer"]))]
+        wind_10m = [4.5 + 2*math.sin(i/100) for i in range(8760)]
+        temp_2m = [12 + 10*math.sin(i/500) for i in range(8760)]
 
     wt_8760 = []
     rotor_area = math.pi * (8 / 2) ** 2
@@ -446,30 +428,8 @@ def get_8760_profiles():
         base_factor = (0.8 + 0.5 * math.exp(-((h - 20) ** 2) / 12))
         p_base = base_load_annual * base_factor
         
-        # Heating demand active below 20°C
-        p_heat = (
-            max(0, 20 - t_ext)
-            * coeff
-            * house_area
-            / 1000
-            / heat_pump_cop
-            / 24
-        )
-
-        # Cooling demand active above 25°C
-        # Includes latent thermal component
-        cooling_gain_factor = 1.35
-        latent_factor = 1.35
-
-        p_cool = (
-            max(0, t_ext - 23)
-            * (coeff * cooling_gain_factor)
-            * house_area
-            / 1000
-            / (heat_pump_cop * 0.9)
-            * latent_factor
-            / 24
-        )
+        p_heat = max(0, 20 - t_ext) * coeff * house_area / 1000 / heat_pump_cop / 24
+        p_cool = max(0, t_ext - 25) * (coeff * 0.5) * house_area / 1000 / (heat_pump_cop * 0.9) / 24
         
         base_8760.append(p_base)
         heating_8760.append(p_heat)
@@ -477,7 +437,7 @@ def get_8760_profiles():
         load_8760.append(p_base + p_heat + p_cool)
 
     return {
-        "pv": pv_8760, "wt": wt_8760, "fer": [pv_8760[i] + wt_8760[i] for i in range(min(len(pv_8760), len(wt_8760)))],
+        "pv": pv_8760, "wt": wt_8760, "fer": [pv_8760[i] + wt_8760[i] for i in range(8760)],
         "load": load_8760, "heating": heating_8760, "cooling": cooling_8760, "base": base_8760
     }
 
@@ -508,7 +468,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
     soc_track_ev_s1 = []
     current_ev_soc_s1 = ev_capacity_kwh * (ev_soc_init_pct / 100.0) if has_ev else 0
     
-    for i in range(len(sim["fer"])):
+    for i in range(8760):
         h = i % 24
         if has_ev and not ev_hours_status[h] and h == 12: 
             current_ev_soc_s1 = max(ev_capacity_kwh*0.1, current_ev_soc_s1 - daily_ev_demand_kwh)
@@ -552,7 +512,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         soc_track_h_s2 = []
         soc_track_ev_s2 = []
         
-        for i in range(len(sim["fer"])):
+        for i in range(8760):
             h = i % 24
             if not ev_hours_status[h] and h == 12: 
                 current_ev_soc_s2 = max(ev_capacity_kwh*0.1, current_ev_soc_s2 - daily_ev_demand_kwh)
@@ -600,7 +560,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         soc_track_h_s3 = []
         soc_track_ev_s3 = []
         
-        for i in range(len(sim["fer"])):
+        for i in range(8760):
             h = i % 24
             if not ev_hours_status[h] and h == 12: 
                 current_ev_soc_s3 = max(ev_capacity_kwh*0.1, current_ev_soc_s3 - daily_ev_demand_kwh)
@@ -775,133 +735,21 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         
         with col_chart1:
             fig_f1, ax_f1 = plt.subplots(figsize=(6, 2.3), dpi=200)
-
-            # RES generation
-            ax_f1.plot(
-                range(24),
-                [sim["fer"][idx] for idx in idx_list],
-                label=T["legend_fer"],
-                color="#059669",
-                lw=1.4
-            )
-
-            # Base load + heating
-            ax_f1.plot(
-                range(24),
-                [sim["base"][idx] + sim["heating"][idx] for idx in idx_list],
-                label=T["legend_base_heat"],
-                color="#475569",
-                lw=1.2
-            )
-
-            # Cooling demand profile
-            cooling_profile = [sim["cooling"][idx] for idx in idx_list]
-
-            ax_f1.fill_between(
-                range(24),
-                [0 for _ in range(24)],
-                cooling_profile,
-                label=T["legend_ac"],
-                color="#38BDF8",
-                alpha=0.35
-            )
-
-            ax_f1.plot(
-                range(24),
-                cooling_profile,
-                label=T["legend_ac_power"],
-                color="#0284C7",
-                lw=1.3,
-                linestyle="--"
-            )
-
+            ax_f1.plot(range(24), [sim["fer"][idx] for idx in idx_list], label=T["legend_fer"], color="#059669", lw=1.4)
+            ax_f1.plot(range(24), [sim["load"][idx] for idx in idx_list], label="Carico Abitazione Base", color="#475569", lw=1.2)
             setup_plot_style(ax_f1, f"{T['chart_hourly_title']}", T["chart_h_x"], "Potenza [kW]")
             ax_f1.legend(fontsize=6.5, frameon=False, loc="upper left")
             st.pyplot(fig_f1)
-
-            # =========================================
-            # WEATHER DETAIL CHART
-            # =========================================
-
-            fig_weather, ax_weather_day = plt.subplots(
-                figsize=(6, 2.0),
-                dpi=200
-            )
-
-            temp_profile = [
-                sim["temp"][idx]
-                for idx in idx_list
-            ]
-
-            ax_weather_day.plot(
-                range(24),
-                temp_profile,
-                color="#DC2626",
-                lw=1.8,
-                label="Temperatura Esterna [°C]"
-            )
-
-            ax_weather_day.fill_between(
-                range(24),
-                temp_profile,
-                alpha=0.15,
-                color="#F87171"
-            )
-
-            ax_weather_day.axhline(
-                23,
-                color="#0EA5E9",
-                linestyle="--",
-                lw=1.0,
-                label="Soglia Attivazione AC"
-            )
-
-            setup_plot_style(
-                ax_weather_day,
-                "Profilo Meteo Utilizzato nel Calcolo HVAC",
-                T["chart_h_x"],
-                "Temperatura [°C]"
-            )
-
-            ax_weather_day.legend(
-                fontsize=6.5,
-                frameon=False,
-                loc="upper left"
-            )
-
-            st.pyplot(fig_weather)
-
             
         with col_chart2:
             fig_f2, ax_f2 = plt.subplots(figsize=(6, 2.3), dpi=200)
-
-            # EV connection overlay
-            if has_ev:
-                ev_connection_profile = [
-                    100 if ev_hours_status[h] else 0
-                    for h in range(24)
-                ]
-
-                ax_f2.fill_between(
-                    range(24),
-                    0,
-                    ev_connection_profile,
-                    color="#A855F7",
-                    alpha=0.08,
-                    label=T["legend_ev_conn"]
-                )
             target_soc_h = soc_track_h_s3 if has_ev else soc_track_h_s1
             h_soc_pct = [(target_soc_h[idx] / battery_capacity_kwh * 100) if battery_capacity_kwh > 0 else 0 for idx in idx_list]
             
             ax_f2.plot(range(24), h_soc_pct, label=T["legend_soc_h"], color='#D97706', lw=1.3, marker='s', markersize=2)
             if has_ev:
-                ev_soc_s1_pct = [(soc_track_ev_s1[idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
-                ev_soc_s2_pct = [(soc_track_ev_s2[idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
-                ev_soc_s3_pct = [(soc_track_ev_s3[idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
-                
-                ax_f2.plot(range(24), ev_soc_s1_pct, label="SoC EV (S1 Standard)", color='#EF4444', lw=1.3, marker='o', markersize=2, alpha=0.8)
-                ax_f2.plot(range(24), ev_soc_s2_pct, label="SoC EV (S2 Smart)", color='#3B82F6', lw=1.3, marker='^', markersize=2, alpha=0.8)
-                ax_f2.plot(range(24), ev_soc_s3_pct, label="SoC EV (S3 V2H)", color='#10B981', lw=1.3, marker='v', markersize=2, alpha=0.9)
+                ev_soc_pct = [(soc_track_ev_s3[idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
+                ax_f2.plot(range(24), ev_soc_pct, label="SoC EV (S3 V2H Reale)", color='#10B981', lw=1.3, marker='o', markersize=2)
             setup_plot_style(ax_f2, f"{T['chart_soc_title']}", T["chart_h_x"], "State of Charge [%]")
             ax_f2.set_ylim(-5, 105)
             ax_f2.legend(fontsize=6.5, frameon=False, loc="lower left")
@@ -916,33 +764,8 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
     col_ann1, col_ann2 = st.columns(2)
     with col_ann1:
         fig_ann_flows, ax_ann_flows = plt.subplots(figsize=(7, 2.5), dpi=200)
-
-        ax_ann_flows.plot(
-            range(len(sim["fer"])),
-            sim["fer"],
-            label="Generazione FER Totale",
-            color="#10B981",
-            alpha=0.6,
-            lw=0.4
-        )
-
-        ax_ann_flows.plot(
-            range(len(total_load_with_ev_s1)),
-            total_load_with_ev_s1,
-            label="Carico Totale Utente",
-            color="#EF4444",
-            alpha=0.45,
-            lw=0.45
-        )
-
-        ax_ann_flows.plot(
-            range(len(sim["cooling"])),
-            sim["cooling"],
-            label=T["legend_ac_power"],
-            color="#0EA5E9",
-            alpha=0.9,
-            lw=0.6
-        )
+        ax_ann_flows.plot(range(8760), sim["fer"], label="Generazione FER Totale", color="#10B981", alpha=0.6, lw=0.4)
+        ax_ann_flows.plot(range(8760), total_load_with_ev_s1, label="Carico Utente Lordo (Edificio + EV)", color="#EF4444", alpha=0.5, lw=0.4)
         setup_plot_style(ax_ann_flows, "Andamento Continuo Potenze (8760 h)", "Ore dell'Anno [1-8760]", "Potenza [kW]")
         ax_ann_flows.legend(fontsize=6.5, frameon=False, loc="upper right")
         st.pyplot(fig_ann_flows)
@@ -954,21 +777,6 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         ax_ann_soc.plot(range(8760), h_soc_annual_pct, label="SoC BESS Casa", color="#D97706", lw=0.5)
         
         if has_ev:
-
-            annual_ev_connection = [
-                100 if ev_hours_status[i % 24] else 0
-                for i in range(len(sim["fer"]))
-            ]
-
-            ax_ann_soc.fill_between(
-                range(8760),
-                0,
-                annual_ev_connection,
-                color="#A855F7",
-                alpha=0.04,
-                label=T["legend_ev_conn"]
-            )
-
             ev_soc_s1_pct = [(v / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for v in soc_track_ev_s1]
             ev_soc_s2_pct = [(v / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for v in soc_track_ev_s2]
             ev_soc_s3_pct = [(v / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for v in soc_track_ev_s3]
