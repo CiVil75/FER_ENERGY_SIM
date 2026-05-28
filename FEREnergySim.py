@@ -321,7 +321,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         
         diretto = min(prod, tot_load)
         local_ac = diretto
-        surplus, deficit = prod - directo, tot_load - directo
+        surplus, deficit = prod - diretto, tot_load - diretto
         
         if surplus > 0 and battery_capacity_kwh > 0:
             ch = min(surplus * battery_eff, soc_max - soc_h_s1)
