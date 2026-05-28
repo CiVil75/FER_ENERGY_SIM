@@ -98,7 +98,7 @@ LANG_DICT = {
         "guide_8760_charts_text": """
         Questi grafici visualizzano l'andamento continuo orario **dal punto 1 (1 Gennaio) al punto 8760 (31 Dicembre)**:
         * **Profilo Continuo dei Flussi (Sinistra):** Consente di studiare visivamente la sovrapposizione tra la campana della produzione solare/eolica e la linea dei consumi totali.
-        * **Evoluzione Continua del SoC (Destra):** Mostra la ciclicità a lungo termine degli accumuli su grafici distinti per ciascuno scenario di controllo operativo per facilitarne la comparazione diretta.
+        * **Evoluzione Continuo del SoC (Destra):** Mostra la ciclicità a lungo termine degli accumuli su grafici distinti per ciascuno scenario di controllo operativo per facilitarne la comparazione diretta.
         """,
         
         "params_title": "🎛️ Configurazione Parametri Tecnici ed Economici",
@@ -279,6 +279,7 @@ st.caption(T["subtitle"])
 with st.expander(T["doc_expander_title"], expanded=False):
     st.markdown(T["doc_global_text"])
 
+# Inizializzazione pulita e centralizzata dello stato di sessione geografico
 if "lat" not in st.session_state: st.session_state.lat = 42.3498
 if "lon" not in st.session_state: st.session_state.lon = 13.3995
 
@@ -361,15 +362,21 @@ with col_loc1:
         try:
             geo_url = f"https://nominatim.openstreetmap.org/search?q={location_query}&format=json&limit=1"
             data = requests.get(geo_url, headers={"User-Agent": "EnergyGIS/1.0"}).json()
-            if data: st.session_state.lat, st.session_state.lon = float(data[0]["lat"]), float(data[0]["lon"])
-        except: st.error("Geocoding Error")
+            if data: 
+                st.session_state.lat = float(data[0]["lat"])
+                st.session_state.lon = float(data[0]["lon"])
+                st.rerun()  # Forza il ridisegno immediato con le nuove coordinate stabili
+        except: 
+            st.error("Geocoding Error")
+            
     lat, lon = st.session_state.lat, st.session_state.lon
     st.info(f"{T['gis_active']}\nLat: {lat:.4f}°\nLon: {lon:.4f}°")
 
 with col_loc2:
+    # Genera la mappa leggendo i dati stabili da session_state
     m = folium.Map(location=[st.session_state.lat, st.session_state.lon], zoom_start=6, tiles="CartoDB positron")
     folium.Marker([st.session_state.lat, st.session_state.lon]).add_to(m)
-    map_data = st_folium(m, width="100%", height=150)
+    map_data = st_folium(m, width="100%", height=150, key=f"map_{st.session_state.lat}_{st.session_state.lon}")
 
 def setup_plot_style(ax, title, xlabel, ylabel):
     ax.set_title(title, fontsize=9, fontweight='600', color='#0F172A', loc='left', pad=8)
