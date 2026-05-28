@@ -87,7 +87,7 @@ LANG_DICT = {
 lang = "ITA"
 T = LANG_DICT[lang]
 
-# Inizializzazione stabile dei session state geografici e di memoria dati
+# Inizializzazione dei session state geografici e di memoria dati
 if "lat" not in st.session_state: st.session_state.lat = 42.3498
 if "lon" not in st.session_state: st.session_state.lon = 13.3995
 if "sim_data" not in st.session_state: st.session_state.sim_data = None
@@ -125,7 +125,7 @@ with exp_eco.expander(T["eco_title"], expanded=False):
     val_injection = st.number_input(T["eco_sell"], min_value=0.00, max_value=2.00, value=0.09, step=0.01, format="%.2f")
     capex_base = st.number_input(T["eco_capex"], min_value=1000, max_value=100000, value=11000, step=500)
 
-# INTERFACCIA DI CONNESSIONE EV SEMPLIFICATA
+# INTERFACCIA DI CONNESSIONE EV
 ev_hours_status = [False] * 24
 if has_ev:
     st.markdown(f"### {T['ev_section_title']}")
@@ -259,7 +259,7 @@ def get_8760_profiles():
         "temp": temp_2m, "wind": wind_10m
     }
 
-# --- ENGINE SIMULAZIONE CON MATRICE PREDITTIVA DI SCARICA ISTANTANEA ---
+# --- APPLICAZIONE DEI FLUSSI DINAMICI ---
 if st.button(T["run_btn"], type="primary", use_container_width=True):
     sim = get_8760_profiles()
     hours_indices = {
@@ -290,11 +290,9 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
     for i in range(8760):
         is_connected = conn_annual[i]
         
-        # 1. Abbattimento istantaneo alla prima ora di disconnessione
         if has_ev and not is_connected and (i == 0 or conn_annual[i-1]):
             current_ev_soc_s1 = max(0.0, current_ev_soc_s1 - daily_ev_demand_kwh)
 
-        # 2. LOGGING ALL'INIZIO DELL'ORA: Cattura l'effettivo SoC di arrivo basso prima che carichi
         soc_track_ev_s1.append(current_ev_soc_s1 if is_connected else np.nan)
         soc_track_h_s1.append(soc_h_s1)
 
@@ -339,7 +337,6 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         if has_ev and not is_connected and (i == 0 or conn_annual[i-1]):
             current_ev_soc_s2 = max(0.0, current_ev_soc_s2 - daily_ev_demand_kwh)
 
-        # Logging all'inizio dell'ora
         soc_track_ev_s2.append(current_ev_soc_s2 if is_connected else np.nan)
         soc_track_h_s2.append(soc_h_s2)
 
@@ -390,10 +387,9 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
 
     for i in range(8760):
         is_connected = conn_annual[i]
-        if has_ev && not is_connected and (i == 0 or conn_annual[i-1]):
+        if has_ev and not is_connected and (i == 0 or conn_annual[i-1]):
             current_ev_soc_s3 = max(0.0, current_ev_soc_s3 - daily_ev_demand_kwh)
 
-        # Logging all'inizio dell'ora
         soc_track_ev_s3.append(current_ev_soc_s3 if is_connected else np.nan)
         soc_track_h_s3.append(soc_h_s3)
 
@@ -491,7 +487,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         "total_load_with_ev_s1": total_load_with_ev_s1
     }
 
-# --- INTERFACCIA OUTPUT PERSISTENTE ---
+# --- INTERFACCIA OUTPUT UTENTE PERSISTENTE ---
 if st.session_state.sim_data is not None:
     sd = st.session_state.sim_data
     sim = sd["sim"]
@@ -515,7 +511,7 @@ if st.session_state.sim_data is not None:
         tab1, = st.tabs(["🏠 Configurazione Impianto Base (Senza EV)"])
 
     with tab1:
-        st.markdown("### 📊 Bilancio Energetico & Finanziario")
+        st.markdown("### 📊 Bilancio Energetico & Risparmio Annuo")
         c1, c2, c3, c4 = st.columns(4)
         c1.metric(T["kpi_ac"], f"{sd['ac_s1']:.0f} kWh"); c2.metric("Indice Autoconsumo", f"{sc_rate_s1:.1f} %"); c3.metric("Autosufficienza", f"{ss_rate_s1:.1f} %"); c4.metric("Prelievo Rete", f"{sd['grid_s1']:.0f} kWh")
         ec1, ec2 = st.columns(2)
@@ -535,7 +531,6 @@ if st.session_state.sim_data is not None:
             ec1, ec2 = st.columns(2)
             ec1.metric(T["kpi_bill_savings"], f"{sd['savings_s3']:.2f} €/anno"); ec2.metric(T["kpi_payback"], f"{sd['payback_s3']:.1f} Anni")
 
-    # RIGENERAZIONE DINAMICA E COMPLETA DELLA TABELLA MATRICE COMPARATIVA
     st.markdown("### 📈 Matrice Comparativa Tecno-Economica Globale (8760h)")
     if has_ev:
         summary_data = {
@@ -551,7 +546,10 @@ if st.session_state.sim_data is not None:
         }
     st.table(summary_data)
 
-    # Dashboard Torte Monitor
+    # Dashboard Monitor Torte
+    dash_ac = sd["ac_s3"] if has_ev else sd["ac_s1"]
+    dash_grid = sd["grid_s3"] if has_ev else sd["grid_s1"]
+    dash_sell = sd["sell_s3"] if has_ev else sd["sell_s1"]
     col_dash1, col_dash2, col_dash3 = st.columns(3)
     with col_dash1:
         st.markdown("**1. Come copro il mio Fabbisogno?**")
@@ -654,7 +652,7 @@ if st.session_state.sim_data is not None:
     with col_ann2:
         if has_ev:
             conn_mask = [100 if ev_hours_status[h % 24] else np.nan for h in range(start_hour, end_hour + 1)]
-            # S1 continuo (Linea)
+            # S1 continuo
             fig_ann_soc_s1, ax_ann_soc_s1 = plt.subplots(figsize=(7, 1.4), dpi=200)
             ax_ann_soc_s1.plot(t_range, [(v / battery_capacity_kwh * 100) for v in sd["soc_track_h_s1"][s_idx:e_idx]], label="SoC BESS Casa", color="#D97706", lw=0.6)
             ax_ann_soc_s1.plot(t_range, [(v / ev_capacity_kwh * 100) for v in sd["soc_track_ev_s1"][s_idx:e_idx]], label="SoC EV", color="#EF4444", lw=0.6, alpha=0.8)
@@ -662,7 +660,7 @@ if st.session_state.sim_data is not None:
             setup_plot_style(ax_ann_soc_s1, "S1: Standard Monodirezionale", "Ore dell'Anno", "SoC [%]")
             ax_ann_soc_s1.set_ylim(-5, 105); ax_ann_soc_s1.legend(fontsize=6, loc="lower left"); st.pyplot(fig_ann_soc_s1)
             
-            # S2 continuo (Linea)
+            # S2 continuo
             fig_ann_soc_s2, ax_ann_soc_s2 = plt.subplots(figsize=(7, 1.4), dpi=200)
             ax_ann_soc_s2.plot(t_range, [(v / battery_capacity_kwh * 100) for v in sd["soc_track_h_s2"][s_idx:e_idx]], label="SoC BESS Casa", color="#B45309", lw=0.6)
             ax_ann_soc_s2.plot(t_range, [(v / ev_capacity_kwh * 100) for v in sd["soc_track_ev_s2"][s_idx:e_idx]], label="SoC EV", color="#3B82F6", lw=0.6, alpha=0.8)
@@ -670,7 +668,7 @@ if st.session_state.sim_data is not None:
             setup_plot_style(ax_ann_soc_s2, "S2: Smart Charging", "Ore dell'Anno", "SoC [%]")
             ax_ann_soc_s2.set_ylim(-5, 105); ax_ann_soc_s2.legend(fontsize=6, loc="lower left"); st.pyplot(fig_ann_soc_s2)
             
-            # S3 continuo (Linea)
+            # S3 continuo
             fig_ann_soc_s3, ax_ann_soc_s3 = plt.subplots(figsize=(7, 1.4), dpi=200)
             ax_ann_soc_s3.plot(t_range, [(v / battery_capacity_kwh * 100) for v in sd["soc_track_h_s3"][s_idx:e_idx]], label="SoC BESS Casa", color="#78350F", lw=0.6)
             ax_ann_soc_s3.plot(t_range, [(v / ev_capacity_kwh * 100) for v in sd["soc_track_ev_s3"][s_idx:e_idx]], label="SoC EV", color="#10B981", lw=0.6, alpha=0.8)
