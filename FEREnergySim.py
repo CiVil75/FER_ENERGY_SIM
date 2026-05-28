@@ -207,7 +207,6 @@ def setup_plot_style(ax, title, xlabel, ylabel):
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
-# --- ENGINE SIMULAZIONE ---
 def get_8760_profiles():
     pvgis_url = f"https://re.jrc.ec.europa.eu/api/v5_2/PVcalc?lat={lat}&lon={lon}&peakpower={pv_power}&angle={pv_tilt}&aspect={pv_azimuth}&loss=14&outputformat=json"
     sol_m = [0]*12
@@ -285,7 +284,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
             idx += 1
         return count
 
-    # --- S1: Monodirezionale Standard ---
+    # --- STRATEGIA S1: Monodirezionale Standard ---
     soc_h_s1 = soc_min
     current_ev_soc_s1 = ev_capacity_kwh if has_ev else 0
     ac_s1, grid_s1, sell_s1 = 0, 0, 0
@@ -331,7 +330,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         ac_s1_hourly[i] = local_ac
         ac_s1 += local_ac
 
-    # --- S2: Smart Charging ---
+    # --- STRATEGIA S2: Smart Charging Predittivo ---
     soc_h_s2 = soc_min
     current_ev_soc_s2 = ev_capacity_kwh if has_ev else 0
     ac_s2, grid_s2, sell_s2 = 0, 0, 0
@@ -384,7 +383,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         ac_s2_hourly[i] = local_ac
         ac_s2 += local_ac
 
-    # --- S3: Bidirectional V2H ---
+    # --- STRATEGIA S3: Vehicle-to-Home Cooperativo ---
     soc_h_s3 = soc_min
     current_ev_soc_s3 = ev_capacity_kwh if has_ev else 0
     ac_s3, grid_s3, sell_s3 = 0, 0, 0
@@ -442,6 +441,46 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         ac_s3_hourly[i] = local_ac
         ac_s3 += local_ac
 
+    annual_ev_kwh = (daily_ev_demand_kwh * 365) if has_ev else 0.0
+    total_demand_annual = sum(sim["load"]) + annual_ev_kwh
+    total_generation_annual = sum(sim["fer"])
+
+    monthly_load_with_ev_s1_agg = [0]*12
+    monthly_ac_s1_agg, monthly_ac_s2_agg, monthly_ac_s3_agg = [0]*12, [0]*12, [0]*12
+    monthly_sol_agg, monthly_wind_agg = [0]*12, [0]*12
+    monthly_base_agg, monthly_heat_agg, monthly_cool_agg = [0]*12, [0]*12, [0]*12
+    
+    c_idx = 0
+    for m in range(12):
+        h_count = days_in_months[m] * 24
+        monthly_load_with_ev_s1_agg[m] = sum(total_load_with_ev_s1[c_idx : c_idx + h_count])
+        monthly_sol_agg[m] = sum(sim["pv"][c_idx : c_idx + h_count])
+        monthly_wind_agg[m] = sum(sim["wt"][c_idx : c_idx + h_count])
+        monthly_base_agg[m] = sum(sim["base"][c_idx : c_idx + h_count])
+        monthly_heat_agg[m] = sum(sim["heating"][c_idx : c_idx + h_count])
+        monthly_cool_agg[m] = sum(sim["cooling"][c_idx : c_idx + h_count])
+        
+        monthly_ac_s1_agg[m] = sum(ac_s1_hourly[c_idx : c_idx + h_count])
+        if has_ev:
+            monthly_ac_s2_agg[m] = sum(ac_s2_hourly[c_idx : c_idx + h_count])
+            monthly_ac_s3_agg[m] = sum(ac_s3_hourly[c_idx : c_idx + h_count])
+        c_idx += h_count
+
+    savings_s1 = (ac_s1 * cost_electricity) + (sell_s1 * val_injection)
+    capex_s1_tot = capex_base + capex_ev_s1
+    payback_s1 = capex_s1_tot / savings_s1 if savings_s1 > 0 else 99
+    
+    if has_ev:
+        savings_s2 = (ac_s2 * cost_electricity) + (sell_s2 * val_injection)
+        savings_s3 = (ac_s3 * cost_electricity) + (sell_s3 * val_injection)
+        capex_s2_tot = capex_base + capex_ev_s2
+        capex_s3_tot = capex_base + capex_ev_s3
+        payback_s2 = capex_s2_tot / savings_s2 if savings_s2 > 0 else 99
+        payback_s3 = capex_s3_tot / savings_s3 if savings_s3 > 0 else 99
+    else:
+        savings_s2, savings_s3, capex_s2_tot, capex_s3_tot, payback_s2, payback_s3 = 0,0,0,0,0,0
+
+    # Tutte le variabili sono popolate e inserite in session_state, comprese le aggregazioni dei carichi e total_demand_annual
     st.session_state.sim_data = {
         "sim": sim, "hours_indices": hours_indices, "has_ev": has_ev, "ev_hours_status": ev_hours_status,
         "total_demand_annual": total_demand_annual, "total_generation_annual": total_generation_annual,
@@ -458,7 +497,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         "total_load_with_ev_s1": total_load_with_ev_s1
     }
 
-# --- SEZIONE RENDERING ORDINATO ---
+# --- RENDERING ORDINATO DELLE SEZIONI DI REPORT ---
 if st.session_state.sim_data is not None:
     sd = st.session_state.sim_data
     sim = sd["sim"]
@@ -474,15 +513,12 @@ if st.session_state.sim_data is not None:
         sc_rate_s3 = (sd["ac_s3"] / sd["total_generation_annual"]) * 100 if sd["total_generation_annual"] > 0 else 0
         ss_rate_s3 = (sd["ac_s3"] / sd["total_demand_annual"]) * 100 if sd["total_demand_annual"] > 0 else 0
 
-    st.markdown(f"## {T['results_title']}")
-    st.markdown(f"<div class='custom-note-result'>{T['results_help']}</div>", unsafe_allow_html=True)
-
     # --- 1ª SEZIONE: ISTOGRAMMA COMPARATIVO ANNUALE MENSILI ---
     st.markdown(f"### {T['final_chart_title']}")
     fig12, ax12 = plt.subplots(figsize=(12, 2.4), dpi=200)
     x_idx = range(1, 13)
     ax12.bar([x - 0.22 for x in x_idx], sd["monthly_load_with_ev_s1_agg"], width=0.18, label=T["final_l1"], color='#94A3B8', alpha=0.25)
-    ax12.bar([x - 0.07 for x in x_idx], sd["monthly_ac_s1_agg"], width=0.15, label=T["final_l2"] if has_ev else "Autoconsumo", color='#EF4444', alpha=0.7)
+    ax12.bar([x - 0.07 for x in x_idx], sd["monthly_ac_s1_agg"], width=0.15, label=T["final_l2"] if has_ev else "Autoconsumo S1", color='#EF4444', alpha=0.7)
     if has_ev:
         ax12.bar([x + 0.07 for x in x_idx], sd["monthly_ac_s2_agg"], width=0.15, label=T["final_l3"], color='#3B82F6', alpha=0.8)
         ax12.bar([x + 0.22 for x in x_idx], sd["monthly_ac_s3_agg"], width=0.15, label=T["final_l4"], color='#10B981', alpha=0.9)
@@ -492,7 +528,7 @@ if st.session_state.sim_data is not None:
     ax12.legend(fontsize=7, frameon=False, loc="upper right")
     st.pyplot(fig12)
 
-    # --- 2ª SEZIONE: PROSPETTO COMPARATIVO PERFORMANCE BARRE CSS (BUG RISOLTO) ---
+    # --- 2ª SEZIONE: PROSPETTO COMPARATIVO PERFORMANCE BARRE CSS (BUG DEL CONTAINER RISOLTO) ---
     st.markdown("### 📊 Prospetto Comparativo delle Performance Inter-Strategia")
     if has_ev:
         col_bar1, col_bar2, col_bar3, col_bar4 = st.columns(4)
@@ -652,7 +688,7 @@ if st.session_state.sim_data is not None:
                 ev_soc_pct_s3 = [(sd["soc_track_ev_s3"][idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
                 ax_f2_s3.plot(range(24), h_soc_pct_s3, label="SoC BESS Casa", color='#78350F', lw=1.3)
                 ax_f2_s3.plot(range(24), ev_soc_pct_s3, label="SoC EV (Connesso)", color='#10B981', lw=1.3, marker='o', markersize=2)
-                setup_plot_style(ax_f2_s3, "S3: Bidirezionale V2H", T["chart_soc_title"], "SoC [%]")
+                setup_plot_style(ax_f2_s3, "S3: Bidirezionale V2H", "SoC [%]", "SoC [%]")
                 ax_f2_s3.set_ylim(-5, 105); ax_f2_s3.legend(fontsize=5.5, loc="lower left"); st.pyplot(fig_f2_s3)
             else:
                 fig_f2, ax_f2 = plt.subplots(figsize=(6, 2.5), dpi=200)
