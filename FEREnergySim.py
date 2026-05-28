@@ -796,4 +796,18 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
     fig12, ax12 = plt.subplots(figsize=(12, 2.4), dpi=200)
     x_idx = range(1, 13)
     ax12.bar([x - 0.22 for x in x_idx], monthly_load_with_ev_s1_agg, width=0.18, label=T["final_l1"], color='#94A3B8', alpha=0.25)
-    ax12.bar([x - 0.07 for x in x_idx], monthly_ac_s1_agg,
+    ax12.bar([x - 0.07 for x in x_idx], monthly_ac_s1_agg, width=0.15, label=T["final_l2"] if has_ev else "Autoconsumo", color='#EF4444', alpha=0.7)
+    
+    if has_ev:
+        ax12.bar([x + 0.07 for x in x_idx], monthly_ac_s2_agg, width=0.15, label=T["final_l3"], color='#3B82F6', alpha=0.8)
+        ax12.bar([x + 0.22 for x in x_idx], monthly_ac_s3_agg, width=0.15, label=T["final_l4"], color='#10B981', alpha=0.9)
+        
+    setup_plot_style(ax12, T["final_chart_sub"], T["final_x"], T["chart_y_kwh"])
+    ax12.set_xticks(x_idx)
+    ax12.set_xticklabels(T["months_labels"])
+    ax12.legend(fontsize=7, frameon=False, loc="upper right")
+    st.pyplot(fig12)
+
+# --- FOOTER ---
+st.markdown("---")
+st.caption("RES-EV Microgrid Core Platform | 8760-Hour Chronological Solver | Engine: PVGIS API & Open-Meteo Weather Dataset")
