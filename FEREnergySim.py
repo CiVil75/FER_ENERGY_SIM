@@ -423,8 +423,8 @@ def get_8760_profiles():
         wind_10m = meteo_res["hourly"]["windspeed_10m"]
         temp_2m = meteo_res["hourly"]["temperature_2m"]
     except:
-        wind_10m = [4.5 + 2*math.sin(i/100) for i in range(8760)]
-        temp_2m = [12 + 10*math.sin(i/500) for i in range(8760)]
+        wind_10m = [4.5 + 2*math.sin(i/100) for i in range(len(sim["fer"]))]
+        temp_2m = [12 + 10*math.sin(i/500) for i in range(len(sim["fer"]))]
 
     wt_8760 = []
     rotor_area = math.pi * (8 / 2) ** 2
@@ -476,7 +476,7 @@ def get_8760_profiles():
         load_8760.append(p_base + p_heat + p_cool)
 
     return {
-        "pv": pv_8760, "wt": wt_8760, "fer": [pv_8760[i] + wt_8760[i] for i in range(8760)],
+        "pv": pv_8760, "wt": wt_8760, "fer": [pv_8760[i] + wt_8760[i] for i in range(len(sim["fer"]))],
         "load": load_8760, "heating": heating_8760, "cooling": cooling_8760, "base": base_8760
     }
 
@@ -507,7 +507,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
     soc_track_ev_s1 = []
     current_ev_soc_s1 = ev_capacity_kwh * (ev_soc_init_pct / 100.0) if has_ev else 0
     
-    for i in range(8760):
+    for i in range(len(sim["fer"])):
         h = i % 24
         if has_ev and not ev_hours_status[h] and h == 12: 
             current_ev_soc_s1 = max(ev_capacity_kwh*0.1, current_ev_soc_s1 - daily_ev_demand_kwh)
@@ -551,7 +551,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         soc_track_h_s2 = []
         soc_track_ev_s2 = []
         
-        for i in range(8760):
+        for i in range(len(sim["fer"])):
             h = i % 24
             if not ev_hours_status[h] and h == 12: 
                 current_ev_soc_s2 = max(ev_capacity_kwh*0.1, current_ev_soc_s2 - daily_ev_demand_kwh)
@@ -599,7 +599,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         soc_track_h_s3 = []
         soc_track_ev_s3 = []
         
-        for i in range(8760):
+        for i in range(len(sim["fer"])):
             h = i % 24
             if not ev_hours_status[h] and h == 12: 
                 current_ev_soc_s3 = max(ev_capacity_kwh*0.1, current_ev_soc_s3 - daily_ev_demand_kwh)
@@ -864,7 +864,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         fig_ann_flows, ax_ann_flows = plt.subplots(figsize=(7, 2.5), dpi=200)
 
         ax_ann_flows.plot(
-            range(8760),
+            range(len(sim["fer"])),
             sim["fer"],
             label="Generazione FER Totale",
             color="#10B981",
@@ -873,7 +873,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         )
 
         ax_ann_flows.plot(
-            range(8760),
+            range(len(total_load_with_ev_s1)),
             total_load_with_ev_s1,
             label="Carico Totale Utente",
             color="#EF4444",
@@ -882,7 +882,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         )
 
         ax_ann_flows.plot(
-            range(8760),
+            range(len(sim["cooling"])),
             sim["cooling"],
             label=T["legend_ac_power"],
             color="#0EA5E9",
@@ -903,7 +903,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
 
             annual_ev_connection = [
                 100 if ev_hours_status[i % 24] else 0
-                for i in range(8760)
+                for i in range(len(sim["fer"]))
             ]
 
             ax_ann_soc.fill_between(
