@@ -46,7 +46,7 @@ LANG_DICT = {
         "guide_metrics_text": "Fornisce indicazioni chiare su Autoconsumo, Autosufficienza e tempo di ammortamento semplice (Payback Period).",
         "guide_macro_charts_title": "📉 Guida ai Grafici di Sintesi Mensile (Macro Bilanci)",
         "guide_macro_charts_text": "Grafici aggregati di generazione e fabbisogno su base mensile con scorporo dei sottocarichi termici.",
-        "guide_hourly_charts_title": "⏱ ...",
+        "guide_hourly_charts_title": "⏱️ Analisi dinamica oraria.",
         "guide_8760_charts_title": "📈 Guida all'Analisi delle Curve Continue Annuali (8760 ore Interattive)",
         "guide_8760_charts_text": "Visualizzazione continua oraria sull'intero anno con possibilità di zoom interattivo tramite lo slider.",
         "params_title": "🎛️ Configurazione Parametri Tecnici ed Economici",
@@ -90,6 +90,9 @@ LANG_DICT = {
 
 lang = "ITA"
 T = LANG_DICT[lang]
+
+# Definizione globale dei giorni dei mesi per renderli accessibili in tutto lo script
+days_in_months = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
 if "lat" not in st.session_state: st.session_state.lat = 42.3498
 if "lon" not in st.session_state: st.session_state.lon = 13.3995
@@ -195,6 +198,16 @@ with col_loc2:
     folium.Marker([st.session_state.lat, st.session_state.lon]).add_to(m)
     map_data = st_folium(m, width="100%", height=150, key=f"map_widget_{st.session_state.lat}_{st.session_state.lon}")
 
+def setup_plot_style(ax, title, xlabel, ylabel):
+    ax.set_title(title, fontsize=9, fontweight='600', color='#0F172A', loc='left', pad=8)
+    ax.set_xlabel(xlabel, fontsize=7.5, color='#475569', labelpad=4)
+    ax.set_ylabel(ylabel, fontsize=7.5, color='#475569', labelpad=4)
+    ax.tick_params(axis='both', which='major', labelsize=7, labelcolor='#475569')
+    ax.grid(True, linestyle='--', alpha=0.4, color='#CBD5E1', lw=0.6)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+# --- ENGINE SIMULAZIONE ---
 def get_8760_profiles():
     pvgis_url = f"https://re.jrc.ec.europa.eu/api/v5_2/PVcalc?lat={lat}&lon={lon}&peakpower={pv_power}&angle={pv_tilt}&aspect={pv_azimuth}&loss=14&outputformat=json"
     sol_m = [0]*12
@@ -204,7 +217,6 @@ def get_8760_profiles():
     except:
         sol_m = [pv_power * 110] * 12
         
-    days_in_months = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     pv_8760 = []
     m_idx = 0
     for m_days in days_in_months:
@@ -253,7 +265,7 @@ def get_8760_profiles():
         "temp": temp_2m, "wind": wind_10m
     }
 
-# --- CALCOLO ENERGETICO CONTINUO ---
+# --- GRUPPO DI CALCOLO SIMULAZIONE ---
 if st.button(T["run_btn"], type="primary", use_container_width=True):
     sim = get_8760_profiles()
     hours_indices = {
@@ -283,6 +295,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
 
     for i in range(8760):
         is_connected = conn_annual[i]
+        
         if has_ev and not is_connected and (i == 0 or conn_annual[i-1]):
             current_ev_soc_s1 = max(0.0, current_ev_soc_s1 - daily_ev_demand_kwh)
 
@@ -429,41 +442,6 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         ac_s3_hourly[i] = local_ac
         ac_s3 += local_ac
 
-    monthly_load_with_ev_s1_agg = [0]*12
-    monthly_ac_s1_agg, monthly_ac_s2_agg, monthly_ac_s3_agg = [0]*12, [0]*12, [0]*12
-    monthly_sol_agg, monthly_wind_agg = [0]*12, [0]*12
-    monthly_base_agg, monthly_heat_agg, monthly_cool_agg = [0]*12, [0]*12, [0]*12
-    
-    c_idx = 0
-    for m in range(12):
-        h_count = days_in_months[m] * 24
-        monthly_load_with_ev_s1_agg[m] = sum(total_load_with_ev_s1[c_idx : c_idx + h_count])
-        monthly_sol_agg[m] = sum(sim["pv"][c_idx : c_idx + h_count])
-        monthly_wind_agg[m] = sum(sim["wt"][c_idx : c_idx + h_count])
-        monthly_base_agg[m] = sum(sim["base"][c_idx : c_idx + h_count])
-        monthly_heat_agg[m] = sum(sim["heating"][c_idx : c_idx + h_count])
-        monthly_cool_agg[m] = sum(sim["cooling"][c_idx : c_idx + h_count])
-        
-        monthly_ac_s1_agg[m] = sum(ac_s1_hourly[c_idx : c_idx + h_count])
-        if has_ev:
-            monthly_ac_s2_agg[m] = sum(ac_s2_hourly[c_idx : c_idx + h_count])
-            monthly_ac_s3_agg[m] = sum(ac_s3_hourly[c_idx : c_idx + h_count])
-        c_idx += h_count
-
-    savings_s1 = (ac_s1 * cost_electricity) + (sell_s1 * val_injection)
-    capex_s1_tot = capex_base + capex_ev_s1
-    payback_s1 = capex_s1_tot / savings_s1 if savings_s1 > 0 else 99
-    
-    if has_ev:
-        savings_s2 = (ac_s2 * cost_electricity) + (sell_s2 * val_injection)
-        savings_s3 = (ac_s3 * cost_electricity) + (sell_s3 * val_injection)
-        capex_s2_tot = capex_base + capex_ev_s2
-        capex_s3_tot = capex_base + capex_ev_s3
-        payback_s2 = capex_s2_tot / savings_s2 if savings_s2 > 0 else 99
-        payback_s3 = capex_s3_tot / savings_s3 if savings_s3 > 0 else 99
-    else:
-        savings_s2, savings_s3, capex_s2_tot, capex_s3_tot, payback_s2, payback_s3 = 0,0,0,0,0,0
-
     st.session_state.sim_data = {
         "sim": sim, "hours_indices": hours_indices, "has_ev": has_ev, "ev_hours_status": ev_hours_status,
         "total_demand_annual": total_demand_annual, "total_generation_annual": total_generation_annual,
@@ -480,7 +458,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         "total_load_with_ev_s1": total_load_with_ev_s1
     }
 
-# --- INTERFACCIA OUTPUT UTENTE ORDINATA ---
+# --- SEZIONE RENDERING ORDINATO ---
 if st.session_state.sim_data is not None:
     sd = st.session_state.sim_data
     sim = sd["sim"]
@@ -499,7 +477,7 @@ if st.session_state.sim_data is not None:
     st.markdown(f"## {T['results_title']}")
     st.markdown(f"<div class='custom-note-result'>{T['results_help']}</div>", unsafe_allow_html=True)
 
-    # --- 1ª SEZIONE: ISTOGRAMMA COMPARATIVO ANNUALE (SPOSTATO IN TESTA) ---
+    # --- 1ª SEZIONE: ISTOGRAMMA COMPARATIVO ANNUALE MENSILI ---
     st.markdown(f"### {T['final_chart_title']}")
     fig12, ax12 = plt.subplots(figsize=(12, 2.4), dpi=200)
     x_idx = range(1, 13)
@@ -514,7 +492,7 @@ if st.session_state.sim_data is not None:
     ax12.legend(fontsize=7, frameon=False, loc="upper right")
     st.pyplot(fig12)
 
-    # --- 2ª SEZIONE: PROSPETTO COMPARATIVO BARRE CSS (CORRETTO IL BUG DEL CONTAINER) ---
+    # --- 2ª SEZIONE: PROSPETTO COMPARATIVO PERFORMANCE BARRE CSS (BUG RISOLTO) ---
     st.markdown("### 📊 Prospetto Comparativo delle Performance Inter-Strategia")
     if has_ev:
         col_bar1, col_bar2, col_bar3, col_bar4 = st.columns(4)
@@ -561,25 +539,24 @@ if st.session_state.sim_data is not None:
             </div>
             """, unsafe_allow_html=True)
     else:
-        st.info("Abilita il veicolo elettrico (EV) nei parametri per sbloccare l'analisi comparativa inter-strategia.")
+        st.info("Abilita il veicolo elettrico (EV) nei parametri per sbloccare l'analisi delle performance.")
 
-    # --- 3ª SEZIONE: MACRO BILANCI MENSILI DETTAGLIATI (CURATI MEGLIO) ---
+    # --- 3ª SEZIONE: MACRO BILANCI MENSILI DETTAGLIATI ---
     st.markdown("### 📊 Macro Bilanci Energetici su Base Mensile")
     col_m1, col_m2 = st.columns(2)
     with col_m1:
         fig_mac_gen, ax_mac_gen = plt.subplots(figsize=(6, 2.3), dpi=200)
-        ax_mac_gen.plot(range(1, 13), sd["monthly_sol_agg"], label="Fotovoltaico (Modellato)", color="#D97706", lw=1.4, marker='o', markersize=2)
+        ax_mac_gen.plot(range(1, 13), sd["monthly_sol_agg"], label="Fotovoltaico (API PVGIS)", color="#D97706", lw=1.4, marker='o', markersize=2)
         ax_mac_gen.bar(range(1, 13), sd["monthly_wind_agg"], label="Eolico (Open-Meteo)", color="#2563EB", alpha=0.2, width=0.4)
         setup_plot_style(ax_mac_gen, T["chart_gen_title"], T["chart_x_month"], T["chart_y_kwh"])
         ax_mac_gen.legend(fontsize=6.5, frameon=False, loc="upper right")
         st.pyplot(fig_mac_gen)
     with col_m2:
         fig_mac_load, ax_mac_load = plt.subplots(figsize=(6, 2.3), dpi=200)
-        # Disegno stratificato e dettagliato dei sottocarichi
-        ax_mac_load.bar(range(1, 13), sd["monthly_base_agg"], label="Carichi Base (Stocastici)", color="#475569", alpha=0.3, width=0.5)
-        ax_mac_load.bar(range(1, 13), sd["monthly_heat_agg"], bottom=sd["monthly_base_agg"], label="Riscaldamento (Pompa di Calore)", color="#DC2626", alpha=0.6, width=0.5)
-        ax_mac_load.bar(range(1, 13), sd["monthly_cool_agg"], bottom=[sd["monthly_base_agg"][k]+sd["monthly_heat_agg"][k] for k in range(12)], label="Condizionamento AC", color="#3B82F6", alpha=0.6, width=0.5)
-        ax_mac_load.plot(range(1, 13), sd["monthly_load_with_ev_s1_agg"], color="#0F172A", lw=1.2, linestyle="-.", label="Fabbisogno Lordo + EV S1")
+        ax_mac_load.bar(range(1, 13), sd["monthly_base_agg"], label="Carichi Elettrici Base", color="#475569", alpha=0.3, width=0.5)
+        ax_mac_load.bar(range(1, 13), sd["monthly_heat_agg"], bottom=sd["monthly_base_agg"], label="Riscaldamento (Pompa Calore)", color="#DC2626", alpha=0.6, width=0.5)
+        ax_mac_load.bar(range(1, 13), sd["monthly_cool_agg"], bottom=[sd["monthly_base_agg"][k]+sd["monthly_heat_agg"][k] for k in range(12)], label="Rinfrescamento (AC)", color="#3B82F6", alpha=0.6, width=0.5)
+        ax_mac_load.plot(range(1, 13), sd["monthly_load_with_ev_s1_agg"], color="#0F172A", lw=1.2, linestyle="-.", label="Fabbisogno Lordo Aggregato")
         setup_plot_style(ax_mac_load, T["chart_load_title"], T["chart_x_month"], T["chart_y_kwh"])
         ax_mac_load.legend(fontsize=6, frameon=False, loc="upper right")
         st.pyplot(fig_mac_load)
@@ -630,10 +607,9 @@ if st.session_state.sim_data is not None:
                 f1, f2 = st.columns(2); f1.metric("Risparmio Economico", f"{sd['savings_s3']:.2f} €/anno"); f2.metric("Tempo di Ritorno (PBP)", f"{sd['payback_s3']:.1f} Anni")
             with mc2: plot_strategy_pies(sd['ac_s3'], sd['grid_s3'], sd['sell_s3'])
 
-    # --- 5ª SEZIONE: ANALISI DINAMICA ORARIA (GIORNI TIPICI + CURVE 8760) ---
+    # --- 5ª SEZIONE: ANALISI DINAMICA ORARIA ---
     st.markdown("---")
     st.subheader("⏱ Analisi Energetica Dinamica Oraria Intra-Giornaliera")
-    
     for season_name, idx_list in hours_indices.items():
         st.markdown(f"#### {season_name}")
         col_chart1, col_chart2 = st.columns(2)
@@ -676,7 +652,7 @@ if st.session_state.sim_data is not None:
                 ev_soc_pct_s3 = [(sd["soc_track_ev_s3"][idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
                 ax_f2_s3.plot(range(24), h_soc_pct_s3, label="SoC BESS Casa", color='#78350F', lw=1.3)
                 ax_f2_s3.plot(range(24), ev_soc_pct_s3, label="SoC EV (Connesso)", color='#10B981', lw=1.3, marker='o', markersize=2)
-                setup_plot_style(ax_f2_s3, "S3: Bidirezionale V2H", "SoC [%]", "SoC [%]")
+                setup_plot_style(ax_f2_s3, "S3: Bidirezionale V2H", T["chart_soc_title"], "SoC [%]")
                 ax_f2_s3.set_ylim(-5, 105); ax_f2_s3.legend(fontsize=5.5, loc="lower left"); st.pyplot(fig_f2_s3)
             else:
                 fig_f2, ax_f2 = plt.subplots(figsize=(6, 2.5), dpi=200)
@@ -701,21 +677,23 @@ if st.session_state.sim_data is not None:
     with col_ann2:
         if has_ev:
             conn_mask = [100 if ev_hours_status[h % 24] else np.nan for h in range(start_hour, end_hour + 1)]
-            # S1
+            # S1 continuo
             fig_ann_soc_s1, ax_ann_soc_s1 = plt.subplots(figsize=(7, 1.4), dpi=200)
             ax_ann_soc_s1.plot(t_range, [(v / battery_capacity_kwh * 100) for v in sd["soc_track_h_s1"][s_idx:e_idx]], label="SoC BESS Casa", color="#D97706", lw=0.6)
             ax_ann_soc_s1.plot(t_range, [(v / ev_capacity_kwh * 100) for v in sd["soc_track_ev_s1"][s_idx:e_idx]], label="SoC EV", color="#EF4444", lw=0.6, alpha=0.8)
             ax_ann_soc_s1.plot(t_range, conn_mask, label="Fascia Connessione", color="#E0F2FE", lw=2.5, alpha=0.4)
             setup_plot_style(ax_ann_soc_s1, "S1: Standard Monodirezionale", "Ore dell'Anno", "SoC [%]")
             ax_ann_soc_s1.set_ylim(-5, 105); ax_ann_soc_s1.legend(fontsize=6, loc="lower left"); st.pyplot(fig_ann_soc_s1)
-            # S2
+            
+            # S2 continuo
             fig_ann_soc_s2, ax_ann_soc_s2 = plt.subplots(figsize=(7, 1.4), dpi=200)
             ax_ann_soc_s2.plot(t_range, [(v / battery_capacity_kwh * 100) for v in sd["soc_track_h_s2"][s_idx:e_idx]], label="SoC BESS Casa", color="#B45309", lw=0.6)
             ax_ann_soc_s2.plot(t_range, [(v / ev_capacity_kwh * 100) for v in sd["soc_track_ev_s2"][s_idx:e_idx]], label="SoC EV", color="#3B82F6", lw=0.6, alpha=0.8)
             ax_ann_soc_s2.plot(t_range, conn_mask, label="Fascia Connessione", color="#E0F2FE", lw=2.5, alpha=0.4)
             setup_plot_style(ax_ann_soc_s2, "S2: Smart Charging", "Ore dell'Anno", "SoC [%]")
             ax_ann_soc_s2.set_ylim(-5, 105); ax_ann_soc_s2.legend(fontsize=6, loc="lower left"); st.pyplot(fig_ann_soc_s2)
-            # S3
+            
+            # S3 continuo
             fig_ann_soc_s3, ax_ann_soc_s3 = plt.subplots(figsize=(7, 1.4), dpi=200)
             ax_ann_soc_s3.plot(t_range, [(v / battery_capacity_kwh * 100) for v in sd["soc_track_h_s3"][s_idx:e_idx]], label="SoC BESS Casa", color="#78350F", lw=0.6)
             ax_ann_soc_s3.plot(t_range, [(v / ev_capacity_kwh * 100) for v in sd["soc_track_ev_s3"][s_idx:e_idx]], label="SoC EV", color="#10B981", lw=0.6, alpha=0.8)
