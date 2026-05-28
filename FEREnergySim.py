@@ -13,7 +13,7 @@ st.set_page_config(page_title="RES-Based Home Simulator 8760", layout="wide")
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700&display=swap');
-    html, body, [data-testid=\"stAppViewContainer\"], .main {
+    html, body, [data-testid="stAppViewContainer"], .main {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
     }
     .reportview-container .main .block-container { padding-top: 0.5rem; padding-bottom: 1rem; }
@@ -195,7 +195,16 @@ with col_loc1:
 
 with col_loc2:
     m = folium.Map(location=[st.session_state.lat, st.session_state.lon], zoom_start=6, tiles="CartoDB positron")
-    folium.Marker([st.session_state.lat, st.session_state.lon]).add_to(m)
+    # Sostituito con CircleMarker per prevenire i bug grafici di visibilità delle icone marker standard in Streamlit
+    folium.CircleMarker(
+        location=[st.session_state.lat, st.session_state.lon],
+        radius=8,
+        color="#EF4444",
+        fill=True,
+        fill_color="#EF4444",
+        fill_opacity=0.9,
+        popup="Sito Selezionato"
+    ).add_to(m)
     map_data = st_folium(m, width="100%", height=150, key=f"map_widget_{st.session_state.lat}_{st.session_state.lon}")
 
 def setup_plot_style(ax, title, xlabel, ylabel):
@@ -311,8 +320,8 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         prod = sim["fer"][i]
         
         diretto = min(prod, tot_load)
-        local_ac = diretto
-        surplus, deficit = prod - diretto, tot_load - diretto
+        local_ac = directo
+        surplus, deficit = prod - directo, tot_load - directo
         
         if surplus > 0 and battery_capacity_kwh > 0:
             ch = min(surplus * battery_eff, soc_max - soc_h_s1)
@@ -392,7 +401,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
 
     for i in range(8760):
         is_connected = conn_annual[i]
-        if has_ev and not is_connected and (i == 0 or conn_annual[i-1]):
+        if has_ev Und not is_connected and (i == 0 or conn_annual[i-1]):
             current_ev_soc_s3 = max(0.0, current_ev_soc_s3 - daily_ev_demand_kwh)
 
         soc_track_ev_s3.append(current_ev_soc_s3 if is_connected else np.nan)
@@ -480,7 +489,6 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
     else:
         savings_s2, savings_s3, capex_s2_tot, capex_s3_tot, payback_s2, payback_s3 = 0,0,0,0,0,0
 
-    # Tutte le variabili sono popolate e inserite in session_state, comprese le aggregazioni dei carichi e total_demand_annual
     st.session_state.sim_data = {
         "sim": sim, "hours_indices": hours_indices, "has_ev": has_ev, "ev_hours_status": ev_hours_status,
         "total_demand_annual": total_demand_annual, "total_generation_annual": total_generation_annual,
@@ -512,6 +520,8 @@ if st.session_state.sim_data is not None:
         ss_rate_s2 = (sd["ac_s2"] / sd["total_demand_annual"]) * 100 if sd["total_demand_annual"] > 0 else 0
         sc_rate_s3 = (sd["ac_s3"] / sd["total_generation_annual"]) * 100 if sd["total_generation_annual"] > 0 else 0
         ss_rate_s3 = (sd["ac_s3"] / sd["total_demand_annual"]) * 100 if sd["total_demand_annual"] > 0 else 0
+    else:
+        ss_rate_s2, ss_rate_s3 = 0, 0
 
     # --- 1ª SEZIONE: ISTOGRAMMA COMPARATIVO ANNUALE MENSILI ---
     st.markdown(f"### {T['final_chart_title']}")
@@ -528,18 +538,20 @@ if st.session_state.sim_data is not None:
     ax12.legend(fontsize=7, frameon=False, loc="upper right")
     st.pyplot(fig12)
 
-    # --- 2ª SEZIONE: PROSPETTO COMPARATIVO PERFORMANCE BARRE CSS (BUG DEL CONTAINER RISOLTO) ---
+    # --- 2ª SEZIONE: PROSPETTO COMPARATIVO PERFORMANCE BARRE CSS ---
     st.markdown("### 📊 Prospetto Comparativo delle Performance Inter-Strategia")
     if has_ev:
         col_bar1, col_bar2, col_bar3, col_bar4 = st.columns(4)
         
         with col_bar1:
+            # Risolto l'overflow impostando un tetto dinamico basato sul valore massimo registrato (anche se > 100%)
+            max_ss = max(100.0, ss_rate_s1, ss_rate_s2, ss_rate_s3)
             st.markdown(f"""
             <div class='compare-card'>
                 <div class='compare-label'>Grado di Autosufficienza [%]</div>
-                <div class='compare-item'><small>S1 Standard</small><div class='compare-bar-container'><div class='compare-bar-fill' style='width: {ss_rate_s1}%; background: #EF4444;'></div></div><div class='compare-val'>{ss_rate_s1:.1f} %</div></div>
-                <div class='compare-item'><small>S2 Smart</small><div class='compare-bar-container'><div class='compare-bar-fill' style='width: {ss_rate_s2}%; background: #3B82F6;'></div></div><div class='compare-val'>{ss_rate_s2:.1f} %</div></div>
-                <div class='compare-item'><small>S3 V2H</small><div class='compare-bar-container'><div class='compare-bar-fill' style='width: {ss_rate_s3}%; background: #10B981;'></div></div><div class='compare-val'>{ss_rate_s3:.1f} %</div></div>
+                <div class='compare-item'><small>S1 Standard</small><div class='compare-bar-container'><div class='compare-bar-fill' style='width: {(ss_rate_s1/max_ss)*100}%; background: #EF4444;'></div></div><div class='compare-val'>{ss_rate_s1:.1f} %</div></div>
+                <div class='compare-item'><small>S2 Smart</small><div class='compare-bar-container'><div class='compare-bar-fill' style='width: {(ss_rate_s2/max_ss)*100}%; background: #3B82F6;'></div></div><div class='compare-val'>{ss_rate_s2:.1f} %</div></div>
+                <div class='compare-item'><small>S3 V2H</small><div class='compare-bar-container'><div class='compare-bar-fill' style='width: {(ss_rate_s3/max_ss)*100}%; background: #10B981;'></div></div><div class='compare-val'>{ss_rate_s3:.1f} %</div></div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -581,18 +593,36 @@ if st.session_state.sim_data is not None:
     st.markdown("### 📊 Macro Bilanci Energetici su Base Mensile")
     col_m1, col_m2 = st.columns(2)
     with col_m1:
+        # Modificato in grafico a barre cumulate: FV sotto, Eolico sopra
         fig_mac_gen, ax_mac_gen = plt.subplots(figsize=(6, 2.3), dpi=200)
-        ax_mac_gen.plot(range(1, 13), sd["monthly_sol_agg"], label="Fotovoltaico (API PVGIS)", color="#D97706", lw=1.4, marker='o', markersize=2)
-        ax_mac_gen.bar(range(1, 13), sd["monthly_wind_agg"], label="Eolico (Open-Meteo)", color="#2563EB", alpha=0.2, width=0.4)
+        ax_mac_gen.bar(range(1, 13), sd["monthly_sol_agg"], label="Fotovoltaico (API PVGIS)", color="#D97706", alpha=0.8, width=0.5)
+        ax_mac_gen.bar(range(1, 13), sd["monthly_wind_agg"], bottom=sd["monthly_sol_agg"], label="Eolico (Open-Meteo)", color="#2563EB", alpha=0.7, width=0.5)
         setup_plot_style(ax_mac_gen, T["chart_gen_title"], T["chart_x_month"], T["chart_y_kwh"])
         ax_mac_gen.legend(fontsize=6.5, frameon=False, loc="upper right")
         st.pyplot(fig_mac_gen)
+        
     with col_m2:
+        # Modificato in barre interamente cumulate (EV -> Base -> Riscaldamento -> Climatizzazione)
         fig_mac_load, ax_mac_load = plt.subplots(figsize=(6, 2.3), dpi=200)
-        ax_mac_load.bar(range(1, 13), sd["monthly_base_agg"], label="Carichi Elettrici Base", color="#475569", alpha=0.3, width=0.5)
-        ax_mac_load.bar(range(1, 13), sd["monthly_heat_agg"], bottom=sd["monthly_base_agg"], label="Riscaldamento (Pompa Calore)", color="#DC2626", alpha=0.6, width=0.5)
-        ax_mac_load.bar(range(1, 13), sd["monthly_cool_agg"], bottom=[sd["monthly_base_agg"][k]+sd["monthly_heat_agg"][k] for k in range(12)], label="Rinfrescamento (AC)", color="#3B82F6", alpha=0.6, width=0.5)
-        ax_mac_load.plot(range(1, 13), sd["monthly_load_with_ev_s1_agg"], color="#0F172A", lw=1.2, linestyle="-.", label="Fabbisogno Lordo Aggregato")
+        
+        # Scorporo della quota EV mensile
+        monthly_ev_agg = [sd["monthly_load_with_ev_s1_agg"][k] - (sd["monthly_base_agg"][k] + sd["monthly_heat_agg"][k] + sd["monthly_cool_agg"][k]) for k in range(12)]
+        
+        # 1. Ricarica EV (Base)
+        ax_mac_load.bar(range(1, 13), monthly_ev_agg, label="Ricarica EV", color="#E11D48", alpha=0.7, width=0.5)
+        
+        # 2. Carichi base sopra EV
+        bottom_base = monthly_ev_agg
+        ax_mac_load.bar(range(1, 13), sd["monthly_base_agg"], bottom=bottom_base, label="Carichi Elettrici Base", color="#475569", alpha=0.4, width=0.5)
+        
+        # 3. Riscaldamento sopra Base+EV
+        bottom_heat = [monthly_ev_agg[k] + sd["monthly_base_agg"][k] for k in range(12)]
+        ax_mac_load.bar(range(1, 13), sd["monthly_heat_agg"], bottom=bottom_heat, label="Riscaldamento (Pompa Calore)", color="#DC2626", alpha=0.6, width=0.5)
+        
+        # 4. Climatizzazione sopra Riscaldamento+Base+EV (Raggiunge il Fabbisogno Lordo Totale)
+        bottom_cool = [monthly_ev_agg[k] + sd["monthly_base_agg"][k] + sd["monthly_heat_agg"][k] for k in range(12)]
+        ax_mac_load.bar(range(1, 13), sd["monthly_cool_agg"], bottom=bottom_cool, label="Rinfrescamento (AC)", color="#3B82F6", alpha=0.6, width=0.5)
+        
         setup_plot_style(ax_mac_load, T["chart_load_title"], T["chart_x_month"], T["chart_y_kwh"])
         ax_mac_load.legend(fontsize=6, frameon=False, loc="upper right")
         st.pyplot(fig_mac_load)
