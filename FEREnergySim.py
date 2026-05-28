@@ -13,7 +13,7 @@ st.set_page_config(page_title="RES-Based Home Simulator 8760", layout="wide")
 # CSS Avanzato per layout ultra-compatto e stilizzazione reportistica
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700&display=swap');
     
     html, body, [data-testid=\"stAppViewContainer\"], .main {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
@@ -46,7 +46,7 @@ st.markdown("""
 # --- DIZIONARIO DI TRADUZIONE BILINGUE E DOCUMENTAZIONE (8760h REVISION) ---
 LANG_DICT = {
     "ITA": {
-        "title": "🌍 RES-Based Home Simulator (8760h continuous) by Prof. Eng. C. Villante",
+        "title": "🌍 Simulatore Residenziale FER (8760h continuo) - Prof. Ing. C. Villante",
         "subtitle": "Modellazione dinamica oraria su base annua (8760 punti) per micro-reti accoppiate a sistemi BESS e V2H.",
         
         "doc_expander_title": "📖 Spiegazione Architettura del Codice e Flussi Dati a 8760 ore (Technical Documentation)",
@@ -61,7 +61,7 @@ LANG_DICT = {
 
         #### 2. Logica dei Tre Scenari di Controllo Comparati
         * **Scenario 1 (Monodirezionale Standard):** L'EV assorbe potenza dalla Wallbox a tasso costante esclusivamente nelle ore in cui è fisicamente connesso, ripartendo linearmente il fabbisogno chilometrico giornaliero. Il BESS agisce da tampone locale passivo.
-        * **Scenario 2 (Smart Charging):** La ricarica dell'EV viene modulata attimo per attimo inseguendo l'eccedenza di produzione FER generata sul nodo domestico al netto dei carichi di casa. La ricarica da rete interviene come emergenza solo se il SoC dell'auto scende sotto la soglia minima di sicurezza per il viaggio.
+        * **Scenario 2 (Smart Charging):** La ricarica dell'EV viene modulata attimo per attimo inseguendo l'eccedenza di produzione FER generata sul nodo domestico al netto dei carichi di casa. La ricarica da rete interviene como emergenza solo se il SoC dell'auto scende sotto la soglia minima di sicurezza per il viaggio.
         * **Scenario 3 (Bidirectional V2H):** La batteria dell'EV diventa un accumulo mobile cooperante in parallelo al BESS domestico. Nelle ore di connessione domestica, se il veicolo ha carica residua superiore alla soglia di viaggio, inietta potenza nella rete interna della casa per abbattere i picchi termici serali ed elettrici (*Peak Shaving*).
         """,
         
@@ -86,11 +86,11 @@ LANG_DICT = {
         
         "guide_hourly_charts_title": "⏱️ Guida all'Analisi dei Giorni Reali Calendatoriali Selezionati",
         "guide_hourly_charts_text": """
-        I grafici mostrano la risposta dinamica del sistema su **4 giorni reali specifici del calendario**, scelti come rappresentativi delle stagioni:
-        * **Inverno (15 Gennaio):** Radiazione solare minima, forte carico termico della pompa di calore.
-        * **Primavera (15 Aprile):** Ottimo bilancio FER, riscaldamento quasi nullo.
-        * **Estate (15 Luglio):** Picco solare a mezzogiorno, carico AC concentrato nelle ore pomeridiane.
-        * **Autunno (15 Ottobre):** Transizione climatica con intermittenza meteorologica.
+        I grafici mostrano la risposta dinamica del sistema su **4 giorni reali specifici del calendario (tutti ricadenti in giorni feriali dal lunedì al venerdì)**, scelti come rappresentativi delle stagioni:
+        * **Inverno (15 Gennaio - Lunedì):** Radiazione solare minima, forte carico termico della pompa di calore.
+        * **Primavera (15 Aprile - Lunedì):** Ottimo bilancio FER, riscaldamento quasi nullo.
+        * **Estate (15 Luglio - Lunedì):** Picco solare a mezzogiorno, carico AC concentrato nelle ore pomeridiane.
+        * **Autunno (15 Ottobre - Martedì):** Transizione climatica con intermittenza meteorologica.
         *I grafici di destra mostrano l'evoluzione dei SoC evidenziando la scarica attiva serale della batteria dell'auto nel caso del V2H (Scenario 3).*
         """,
         
@@ -98,7 +98,7 @@ LANG_DICT = {
         "guide_8760_charts_text": """
         Questi grafici visualizzano l'andamento continuo orario **dal punto 1 (1 Gennaio) al punto 8760 (31 Dicembre)**:
         * **Profilo Continuo dei Flussi (Sinistra):** Consente di studiare visivamente la sovrapposizione tra la campana della produzione solare/eolica e la linea dei consumi totali.
-        * **Evoluzione Continua del SoC (Destra):** Mostra la ciclicità a lungo termine degli accumuli. Si nota come l'accumulo stazionario (BESS) e quello dell'auto (EV) lavorino intensamente nei mesi estivi, mentre tendano a stabilizzarsi sui minimi tecnici nei mesi invernali a causa del ridotto surplus energetico.
+        * **Evoluzione Continua del SoC (Destra):** Mostra la ciclicità a lungo termine degli accumuli. Se l'EV è attivo, vengono messi a confronto i diversi profili di carica residua dell'auto per metterne in risalto i benefici gestionali.
         """,
         
         "params_title": "🎛️ Configurazione Parametri Tecnici ed Economici",
@@ -143,14 +143,14 @@ LANG_DICT = {
         "chart_x_month": "Mese", "chart_y_kwh": "Energia [kWh]",
         "season_title": "📈 Dinamica Oraria Dettagliata sui Giorni Tipici Reali Selezionati",
         "season_help": "🔬 Analisi intra-giornaliera su specifiche giornate reali feriali del calendario continuo.",
-        "inv": "Inverno (15 Gen)", "pri": "Primavera (15 Apr)", "est": "Estate (15 Lug)", "aut": "Autunno (15 Ott)",
-        "inv_t": "❄️ Giorno Reale Invernale (15 Gennaio)", "pri_t": "🌱 Giorno Reale Primavera (15 Aprile)", "est_t": "☀️ Giorno Reale Estivo (15 Luglio)", "aut_t": "🍂 Giorno Reale Autunnale (15 Ottobre)",
+        "inv": "Inverno (15 Gennaio - Lunedì)", "pri": "Primavera (15 Aprile - Lunedì)", "est": "Estate (15 Luglio - Lunedì)", "aut": "Autunno (15 Ottobre - Martedì)",
+        "inv_t": "❄️ Giorno Reale Invernale (15 Gennaio - Lunedì)", "pri_t": "🌱 Giorno Reale Primavera (15 Aprile - Lunedì)", "est_t": "☀️ Giorno Reale Estivo (15 Luglio - Lunedì)", "aut_t": "🍂 Giorno Reale Autunnale (15 Ottobre - Martedì)",
         "chart_hourly_title": "Bilancio di Potenza Orario", "chart_soc_title": "Stato di Carica (SoC)",
         "chart_h_x": "Ora del Giorno [h]", "chart_h_y_flow": "Potenza/Energia Oraria [kWh]", "chart_h_y_soc": "State of Charge [%]",
         "legend_fer": "Generazione FER", "legend_base_heat": "Carico Base + Riscaldamento", "legend_ac": "Carico Condizionamento (AC)", "legend_tot_ev": "Carico Totale + Ricarica EV",
         "legend_soc_h": "SoC Batteria Casa", "legend_grid_on": "Accoppiamento Veicolo Attivo",
         "final_chart_title": "📊 Analisi Comparativa delle Strategie di Autoconsumo sull'Anno",
-        "final_chart_sub": "Copertura Energetica ed Autoconsumo Mensile Effettivo nelle 3 Strategie",
+        "final_chart_sub": "Copertura Energetica ed Autoconsumo Mensile Effettivo nelle Strategie Simulation",
         "final_x": "Mese dell'Anno", "final_l1": "Fabbisogno Utenza Lordo", "final_l2": "S1: Monodirezionale Standard", "final_l3": "S2: Smart Charging", "final_l4": "S3: Bidirezionale V2H/V2L",
         "months_labels": ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'],
         "hp_share": "Quota Riscaldamento", "ac_share": "Quota Condizionamento (AC)",
@@ -197,18 +197,18 @@ LANG_DICT = {
         
         "guide_hourly_charts_title": "⏱️ Guide to Intra-Day Analysis on Selected Real Typical Days",
         "guide_hourly_charts_text": """
-        These plots focus on dynamic system responses across **4 specific real calendar days**, chosen as seasonal representatives:
-        * **Winter (Jan 15th):** Low solar radiation, massive heat pump thermal load.
-        * **Spring (Apr 15th):** High RES generation, negligible ambient conditioning.
-        * **Summer (Jul 15th):** Peak solar output at noon, high AC loads during afternoon hours.
-        * **Autumn (Oct 15th):** Weather transition with highly intermittent wind and solar resource.
+        These plots focus on dynamic system responses across **4 specific real calendar days (all falling on standard business weekdays from Monday to Friday)**, chosen as seasonal representatives:
+        * **Winter (Jan 15th - Monday):** Low solar radiation, massive heat pump thermal load.
+        * **Spring (Apr 15th - Monday):** High RES generation, negligible ambient conditioning.
+        * **Summer (Jul 15th - Monday):** Peak solar output at noon, high AC loads during afternoon hours.
+        * **Autumn (Oct 15th - Tuesday):** Weather transition with highly intermittent wind and solar resource.
         """,
         
         "guide_8760_charts_title": "📈 Guide to Continuous Annual Curve Analysis (8760 Hours)",
         "guide_8760_charts_text": """
         These plots illustrate continuous trends **from hour 1 (January 1st) to hour 8760 (December 31st)**:
         * **Continuous Flows Profile (Left):** Visually displays matching or mismatches between solar/wind bell curves and building aggregated total consumption.
-        * **Continuous SoC Evolution (Right):** Tracks battery status over a long horizon. You can observe intense battery cycling during summer, contrasting with flat periods at minimum SoC in winter due to scarcity of RES surplus.
+        * **Continuous SoC Evolution (Right):** Tracks battery status over a long horizon. When the EV option is checked, it evaluates the EV charging state across all scenarios to highlight algorithmic variances.
         """,
         
         "params_title": "🎛️ Technical and Economic Parameters Configuration",
@@ -253,14 +253,14 @@ LANG_DICT = {
         "chart_x_month": "Month", "chart_y_kwh": "Energy [kWh]",
         "season_title": "📈 Detailed Hourly Dynamics on Selected Real Typical Days",
         "season_help": "🔬 Intra-day analysis on specific calendar real business days.",
-        "inv": "Winter (Jan 15th)", "pri": "Spring (Apr 15th)", "est": "Summer (Jul 15th)", "aut": "Autumn (Oct 15th)",
-        "inv_t": "❄️ Real Winter Day (January 15th)", "pri_t": "🌱 Real Spring Day (April 15th)", "est_t": "☀️ Real Summer Day (July 15th)", "aut_t": "🍂 Real Autumn Day (October 15th)",
+        "inv": "Winter (Jan 15th - Monday)", "pri": "Spring (Apr 15th - Monday)", "est": "Summer (Jul 15th - Monday)", "aut": "Autumn (Oct 15th - Tuesday)",
+        "inv_t": "❄️ Real Winter Day (January 15th - Monday)", "pri_t": "🌱 Real Spring Day (April 15th - Monday)", "est_t": "☀️ Real Summer Day (July 15th - Monday)", "aut_t": "🍂 Real Autumn Day (October 15th - Tuesday)",
         "chart_hourly_title": "Hourly Power Balance", "chart_soc_title": "State of Charge (SoC)",
         "chart_h_x": "Time of Day [h]", "chart_h_y_flow": "Hourly Power/Energy [kWh]", "chart_h_y_soc": "State of Charge [%]",
         "legend_fer": "RES Generation", "legend_base_heat": "Base Load + Heating", "legend_ac": "Cooling Load (AC)", "legend_tot_ev": "Total Load + EV Charge",
         "legend_soc_h": "Home BESS SoC", "legend_grid_on": "Vehicle Connected",
         "final_chart_title": "📊 Comparative Analysis of Self-Consumption Strategies over the Year",
-        "final_chart_sub": "Energy Coverage and Effective Monthly Self-Consumption across the 3 Strategies",
+        "final_chart_sub": "Energy Coverage and Effective Monthly Self-Consumption across Simulation Scenarios",
         "final_x": "Month of the Year", "final_l1": "Gross Load", "final_l2": "S1: Standard Monodirectional", "final_l3": "S2: Smart Charging", "final_l4": "S3: Bidirectional V2H/V2L",
         "months_labels": ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
         "hp_share": "Heating Share", "ac_share": "Cooling Share (AC)",
@@ -381,14 +381,13 @@ def setup_plot_style(ax, title, xlabel, ylabel):
 
 # --- ENGINE DI SIMULAZIONE GENERAZIONE E DOMANDA CONTINUA (8760 Ore) ---
 def get_8760_profiles():
-    # Generazione base PV oraria distribuita sull'anno geometrico
     pvgis_url = f"https://re.jrc.ec.europa.eu/api/v5_2/PVcalc?lat={lat}&lon={lon}&peakpower={pv_power}&angle={pv_tilt}&aspect={pv_azimuth}&loss=14&outputformat=json"
     sol_m = [0]*12
     try:
         sol_data = requests.get(pvgis_url).json()
         sol_m = [m["E_m"] * (pv_efficiency / 20) for m in sol_data["outputs"]["monthly"]["fixed"]]
     except:
-        sol_m = [pv_power * 110] * 12 # Backup fallback
+        sol_m = [pv_power * 110] * 12
         
     days_in_months = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     pv_8760 = []
@@ -401,7 +400,6 @@ def get_8760_profiles():
                 pv_8760.append((m_energy / m_days) * factor / 6.5)
         m_idx += 1
 
-    # Dati Climatici orari reali storici Open-Meteo per Eolico e Temperature (8760 punti)
     open_meteo_url = f"https://archive-api.open-meteo.com/v1/archive?latitude={lat}&longitude={lon}&start_date=2024-01-01&end_date=2024-12-31&hourly=windspeed_10m,temperature_2m"
     try:
         meteo_res = requests.get(open_meteo_url).json()
@@ -411,7 +409,6 @@ def get_8760_profiles():
         wind_10m = [4.5 + 2*math.sin(i/100) for i in range(8760)]
         temp_2m = [12 + 10*math.sin(i/500) for i in range(8760)]
 
-    # Modellazione Eolica 8760h
     wt_8760 = []
     rotor_area = math.pi * (8 / 2) ** 2
     for v10 in wind_10m:
@@ -419,7 +416,6 @@ def get_8760_profiles():
         p_wt = min((0.5 * 1.225 * rotor_area * 0.35 * (vh ** 3)) / 1000, wind_power_kw)
         wt_8760.append(max(0.0, p_wt))
 
-    # Modellazione Carichi Edificio 8760h (Firma Termica)
     thermal_coefficients = {"A4": 10, "A3": 18, "A2": 28, "A1": 38, "B": 55, "C": 80, "D": 120}
     coeff = thermal_coefficients[building_class]
     
@@ -451,16 +447,15 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
     
     # 4 Giorni feriali reali di dettaglio impostati sul calendario sequenziale (ore annue)
     hours_indices = {
-        T["inv"]: list(range(336, 360)),    # 15 Gennaio
-        T["pri"]: list(range(2520, 2544)),  # 15 Aprile
-        T["est"]: list(range(4680, 4704)),  # 15 Luglio
-        T["aut"]: list(range(6888, 6912))   # 15 Ottobre
+        T["inv"]: list(range(336, 360)),    # 15 Gennaio (Lunedì)
+        T["pri"]: list(range(2520, 2544)),  # 15 Aprile (Lunedì)
+        T["est"]: list(range(4680, 4704)),  # 15 Luglio (Lunedì)
+        T["aut"]: list(range(6888, 6912))   # 15 Ottobre (Martedì)
     }
 
-    # Definizione corretta della domanda chilometrica EV annuale (365 giorni)
     annual_ev_kwh = (daily_ev_demand_kwh * 365) if has_ev else 0.0
 
-    # Vettori per memorizzare l'autoconsumo orario effettivo e fare i bilanci mensili reali
+    # Vettori per memorizzare l'autoconsumo orario effettivo
     ac_s1_hourly = [0.0] * 8760
     ac_s2_hourly = [0.0] * 8760
     ac_s3_hourly = [0.0] * 8760
@@ -478,7 +473,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         if has_ev and not ev_hours_status[h] and h == 12: 
             current_ev_soc_s1 = max(ev_capacity_kwh*0.1, current_ev_soc_s1 - daily_ev_demand_kwh)
             
-        ev_load = (daily_ev_demand_kwh / ev_hours_status.count(True)) if (has_ev and ev_hours_status[h]) else 0.0
+        ev_load = (daily_ev_demand_kwh / ev_hours_status.count(True)) if (has_ev and ev_hours_status[h] and ev_hours_status.count(True) > 0) else 0.0
         tot_load = sim["load"][i] + ev_load
         total_load_with_ev_s1[i] = tot_load
         
@@ -509,102 +504,103 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         soc_track_h_s1.append(soc_h_s1)
         soc_track_ev_s1.append(current_ev_soc_s1)
 
-    # --- SIMULAZIONE SCENARIO 2: Smart Charging ---
-    soc_h_s2 = soc_min
-    current_ev_soc_s2 = ev_capacity_kwh * (ev_soc_init_pct / 100.0) if has_ev else 0
-    ac_s2, grid_s2, sell_s2 = 0, 0, 0
-    soc_track_h_s2 = []
-    soc_track_ev_s2 = []
-    
-    for i in range(8760):
-        h = i % 24
-        if has_ev and not ev_hours_status[h] and h == 12: 
-            current_ev_soc_s2 = max(ev_capacity_kwh*0.1, current_ev_soc_s2 - daily_ev_demand_kwh)
-            
-        prod, house_load = sim["fer"][i], sim["load"][i]
-        diretto = min(prod, house_load)
-        local_ac = diretto
-        surplus = prod - diretto
+    if has_ev:
+        # --- SIMULAZIONE SCENARIO 2: Smart Charging ---
+        soc_h_s2 = soc_min
+        current_ev_soc_s2 = ev_capacity_kwh * (ev_soc_init_pct / 100.0)
+        ac_s2, grid_s2, sell_s2 = 0, 0, 0
+        soc_track_h_s2 = []
+        soc_track_ev_s2 = []
         
-        if surplus > 0:
-            if battery_capacity_kwh > 0 and soc_h_s2 < soc_max:
-                ch = min(surplus * battery_eff, soc_max - soc_h_s2)
-                soc_h_s2 += ch
-                surplus -= (ch / battery_eff)
-                local_ac += ch
-            if has_ev and ev_hours_status[h] and surplus > 0 and current_ev_soc_s2 < ev_capacity_kwh:
-                ch_ev = min(min(v2h_power_kw, surplus) * v2h_eff, ev_capacity_kwh - current_ev_soc_s2)
-                current_ev_soc_s2 += ch_ev
-                surplus -= (ch_ev / v2h_eff)
-                local_ac += ch_ev
-            sell_s2 += surplus
-            deficit = 0
-        else:
-            deficit = house_load - prod
-            if battery_capacity_kwh > 0 and soc_h_s2 > soc_min:
-                dh = min(deficit, (soc_h_s2 - soc_min) * battery_eff)
-                soc_h_s2 -= (dh / battery_eff)
-                local_ac += dh
-                deficit -= dh
-            if has_ev and ev_hours_status[h] and current_ev_soc_s2 < ev_soc_travel_min:
-                f_ch = min(v2h_power_kw, (ev_soc_travel_min - current_ev_soc_s2) / v2h_eff)
-                current_ev_soc_s2 += f_ch * v2h_eff
-                deficit += f_ch
-            grid_s2 += deficit
+        for i in range(8760):
+            h = i % 24
+            if not ev_hours_status[h] and h == 12: 
+                current_ev_soc_s2 = max(ev_capacity_kwh*0.1, current_ev_soc_s2 - daily_ev_demand_kwh)
+                
+            prod, house_load = sim["fer"][i], sim["load"][i]
+            diretto = min(prod, house_load)
+            local_ac = diretto
+            surplus = prod - diretto
             
-        ac_s2 += local_ac
-        ac_s2_hourly[i] = local_ac
-        soc_track_h_s2.append(soc_h_s2)
-        soc_track_ev_s2.append(current_ev_soc_s2)
+            if surplus > 0:
+                if battery_capacity_kwh > 0 and soc_h_s2 < soc_max:
+                    ch = min(surplus * battery_eff, soc_max - soc_h_s2)
+                    soc_h_s2 += ch
+                    surplus -= (ch / battery_eff)
+                    local_ac += ch
+                if ev_hours_status[h] and surplus > 0 and current_ev_soc_s2 < ev_capacity_kwh:
+                    ch_ev = min(min(v2h_power_kw, surplus) * v2h_eff, ev_capacity_kwh - current_ev_soc_s2)
+                    current_ev_soc_s2 += ch_ev
+                    surplus -= (ch_ev / v2h_eff)
+                    local_ac += ch_ev
+                sell_s2 += surplus
+                deficit = 0
+            else:
+                deficit = house_load - prod
+                if battery_capacity_kwh > 0 and soc_h_s2 > soc_min:
+                    dh = min(deficit, (soc_h_s2 - soc_min) * battery_eff)
+                    soc_h_s2 -= (dh / battery_eff)
+                    local_ac += dh
+                    deficit -= dh
+                if ev_hours_status[h] and current_ev_soc_s2 < ev_soc_travel_min:
+                    f_ch = min(v2h_power_kw, (ev_soc_travel_min - current_ev_soc_s2) / v2h_eff)
+                    current_ev_soc_s2 += f_ch * v2h_eff
+                    deficit += f_ch
+                grid_s2 += deficit
+                
+            ac_s2 += local_ac
+            ac_s2_hourly[i] = local_ac
+            soc_track_h_s2.append(soc_h_s2)
+            soc_track_ev_s2.append(current_ev_soc_s2)
 
-    # --- SIMULAZIONE SCENARIO 3: Bidirezionale V2H ---
-    soc_h_s3 = soc_min
-    current_ev_soc_s3 = ev_capacity_kwh * (ev_soc_init_pct / 100.0) if has_ev else 0
-    ac_s3, grid_s3, sell_s3 = 0, 0, 0
-    soc_track_h_s3 = []
-    soc_track_ev_s3 = []
-    
-    for i in range(8760):
-        h = i % 24
-        if has_ev and not ev_hours_status[h] and h == 12: 
-            current_ev_soc_s3 = max(ev_capacity_kwh*0.1, current_ev_soc_s3 - daily_ev_demand_kwh)
-            
-        prod, house_load = sim["fer"][i], sim["load"][i]
-        diretto = min(prod, house_load)
-        local_ac = diretto
-        surplus, deficit = prod - diretto, house_load - diretto
+        # --- SIMULAZIONE SCENARIO 3: Bidirezionale V2H ---
+        soc_h_s3 = soc_min
+        current_ev_soc_s3 = ev_capacity_kwh * (ev_soc_init_pct / 100.0)
+        ac_s3, grid_s3, sell_s3 = 0, 0, 0
+        soc_track_h_s3 = []
+        soc_track_ev_s3 = []
         
-        if surplus > 0:
-            if has_ev and ev_hours_status[h] and current_ev_soc_s3 < ev_capacity_kwh:
-                ch_ev = min(min(v2h_power_kw, surplus) * v2h_eff, ev_capacity_kwh - current_ev_soc_s3)
-                current_ev_soc_s3 += ch_ev
-                surplus -= (ch_ev / v2h_eff)
-                local_ac += ch_ev
-            if battery_capacity_kwh > 0 and soc_h_s3 < soc_max:
-                ch = min(surplus * battery_eff, soc_max - soc_h_s3)
-                soc_h_s3 += ch
-                surplus -= (ch / battery_eff)
-                local_ac += ch
-            sell_s3 += surplus
-        elif deficit > 0:
-            if has_ev and ev_hours_status[h] and current_ev_soc_s3 > ev_soc_travel_min:
-                dh_v2h = min(min(v2h_power_kw, deficit), (current_ev_soc_s3 - ev_soc_travel_min) * v2h_eff)
-                current_ev_soc_s3 -= (dh_v2h / v2h_eff)
-                deficit -= dh_v2h
-                local_ac += dh_v2h
-            if deficit > 0 and battery_capacity_kwh > 0 and soc_h_s3 > soc_min:
-                dh = min(deficit, (soc_h_s3 - soc_min) * battery_eff)
-                soc_h_s3 -= (dh / battery_eff)
-                local_ac += dh
-                deficit -= dh
-            grid_s3 += deficit
+        for i in range(8760):
+            h = i % 24
+            if not ev_hours_status[h] and h == 12: 
+                current_ev_soc_s3 = max(ev_capacity_kwh*0.1, current_ev_soc_s3 - daily_ev_demand_kwh)
+                
+            prod, house_load = sim["fer"][i], sim["load"][i]
+            diretto = min(prod, house_load)
+            local_ac = diretto
+            surplus, deficit = prod - diretto, house_load - diretto
             
-        ac_s3 += local_ac
-        ac_s3_hourly[i] = local_ac
-        soc_track_h_s3.append(soc_h_s3)
-        soc_track_ev_s3.append(current_ev_soc_s3)
+            if surplus > 0:
+                if ev_hours_status[h] and current_ev_soc_s3 < ev_capacity_kwh:
+                    ch_ev = min(min(v2h_power_kw, surplus) * v2h_eff, ev_capacity_kwh - current_ev_soc_s3)
+                    current_ev_soc_s3 += ch_ev
+                    surplus -= (ch_ev / v2h_eff)
+                    local_ac += ch_ev
+                if battery_capacity_kwh > 0 and soc_h_s3 < soc_max:
+                    ch = min(surplus * battery_eff, soc_max - soc_h_s3)
+                    soc_h_s3 += ch
+                    surplus -= (ch / battery_eff)
+                    local_ac += ch
+                sell_s3 += surplus
+            elif deficit > 0:
+                if ev_hours_status[h] and current_ev_soc_s3 > ev_soc_travel_min:
+                    dh_v2h = min(min(v2h_power_kw, deficit), (current_ev_soc_s3 - ev_soc_travel_min) * v2h_eff)
+                    current_ev_soc_s3 -= (dh_v2h / v2h_eff)
+                    deficit -= dh_v2h
+                    local_ac += dh_v2h
+                if deficit > 0 and battery_capacity_kwh > 0 and soc_h_s3 > soc_min:
+                    dh = min(deficit, (soc_h_s3 - soc_min) * battery_eff)
+                    soc_h_s3 -= (dh / battery_eff)
+                    local_ac += dh
+                    deficit -= dh
+                grid_s3 += deficit
+                
+            ac_s3 += local_ac
+            ac_s3_hourly[i] = local_ac
+            soc_track_h_s3.append(soc_h_s3)
+            soc_track_ev_s3.append(current_ev_soc_s3)
 
-    # Aggregazione mensile esatta per grafici storici stabili basati sulle 8760 ore reali
+    # Aggregazione mensile esatta
     monthly_load_agg = [0]*12
     monthly_load_with_ev_s1_agg = [0]*12
     monthly_ac_s1_agg, monthly_ac_s2_agg, monthly_ac_s3_agg = [0]*12, [0]*12, [0]*12
@@ -620,22 +616,23 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         monthly_wind_agg[m] = sum(sim["wt"][c_idx : c_idx + h_count])
         
         monthly_ac_s1_agg[m] = sum(ac_s1_hourly[c_idx : c_idx + h_count])
-        monthly_ac_s2_agg[m] = sum(ac_s2_hourly[c_idx : c_idx + h_count])
-        monthly_ac_s3_agg[m] = sum(ac_s3_hourly[c_idx : c_idx + h_count])
+        if has_ev:
+            monthly_ac_s2_agg[m] = sum(ac_s2_hourly[c_idx : c_idx + h_count])
+            monthly_ac_s3_agg[m] = sum(ac_s3_hourly[c_idx : c_idx + h_count])
         c_idx += h_count
 
     # Finanza 8760h coerente
     savings_s1 = (ac_s1 * cost_electricity) + (sell_s1 * val_injection)
-    savings_s2 = (ac_s2 * cost_electricity) + (sell_s2 * val_injection)
-    savings_s3 = (ac_s3 * cost_electricity) + (sell_s3 * val_injection)
-    
     capex_s1_tot = capex_base + capex_ev_s1
-    capex_s2_tot = capex_base + capex_ev_s2
-    capex_s3_tot = capex_base + capex_ev_s3
-    
     payback_s1 = capex_s1_tot / savings_s1 if savings_s1 > 0 else 99
-    payback_s2 = capex_s2_tot / savings_s2 if savings_s2 > 0 else 99
-    payback_s3 = capex_s3_tot / savings_s3 if savings_s3 > 0 else 99
+    
+    if has_ev:
+        savings_s2 = (ac_s2 * cost_electricity) + (sell_s2 * val_injection)
+        savings_s3 = (ac_s3 * cost_electricity) + (sell_s3 * val_injection)
+        capex_s2_tot = capex_base + capex_ev_s2
+        capex_s3_tot = capex_base + capex_ev_s3
+        payback_s2 = capex_s2_tot / savings_s2 if savings_s2 > 0 else 99
+        payback_s3 = capex_s3_tot / savings_s3 if savings_s3 > 0 else 99
     
     total_demand_annual = sum(sim["load"]) + annual_ev_kwh
     total_generation_annual = sum(sim["fer"])
@@ -649,45 +646,63 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         
     sc_rate_s1 = (ac_s1 / total_generation_annual) * 100 if total_generation_annual > 0 else 0
     ss_rate_s1 = (ac_s1 / total_demand_annual) * 100 if total_demand_annual > 0 else 0
-    sc_rate_s2 = (ac_s2 / total_generation_annual) * 100 if total_generation_annual > 0 else 0
-    ss_rate_s2 = (ac_s2 / total_demand_annual) * 100 if total_demand_annual > 0 else 0
-    sc_rate_s3 = (ac_s3 / total_generation_annual) * 100 if total_generation_annual > 0 else 0
-    ss_rate_s3 = (ac_s3 / total_demand_annual) * 100 if total_demand_annual > 0 else 0
+    
+    if has_ev:
+        sc_rate_s2 = (ac_s2 / total_generation_annual) * 100 if total_generation_annual > 0 else 0
+        ss_rate_s2 = (ac_s2 / total_demand_annual) * 100 if total_demand_annual > 0 else 0
+        sc_rate_s3 = (ac_s3 / total_generation_annual) * 100 if total_generation_annual > 0 else 0
+        ss_rate_s3 = (ac_s3 / total_demand_annual) * 100 if total_demand_annual > 0 else 0
 
-    tab1, tab2, tab3 = st.tabs(["🛑 Scenario 1: Monodirezionale Standard", "☀️ Scenario 2: Smart Charging", "🔄 Scenario 3: Bidirectional V2H"])
+        tab1, tab2, tab3 = st.tabs(["🛑 Scenario 1: Monodirezionale Standard", "☀️ Scenario 2: Smart Charging", "🔄 Scenario 3: Bidirectional V2H"])
+    else:
+        tab1, = st.tabs(["🏠 Configurazione Impianto Base (Senza EV)"])
+
     with tab1:
-        st.markdown("### 📊 Bilancio Energetico - Configurazione Passiva")
+        st.markdown(f"### 📊 Bilancio Energetico - {'Configurazione Passiva' if has_ev else 'Impianto Base'}")
         c1, c2, c3, c4 = st.columns(4)
         c1.metric(T["kpi_ac"], f"{ac_s1:.0f} kWh"); c2.metric("Indice Autoconsumo", f"{sc_rate_s1:.1f} %"); c3.metric("Autosufficienza", f"{ss_rate_s1:.1f} %"); c4.metric("Prelievo da Rete", f"{grid_s1:.0f} kWh")
         ec1, ec2, ec3 = st.columns(3)
         ec1.metric(T["kpi_bill_savings"], f"{savings_s1:.2f} €/anno"); ec2.metric(T["kpi_payback"], f"{payback_s1:.1f} Anni"); ec3.metric("CO₂ Evitata", f"{ac_s1*0.41:.1f} kg/anno")
-    with tab2:
-        st.markdown("### 📊 Bilancio Energetico - Smart Charging")
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric(T["kpi_ac"], f"{ac_s2:.0f} kWh"); c2.metric("Indice Autoconsumo", f"{sc_rate_s2:.1f} %"); c3.metric("Autosufficienza", f"{ss_rate_s2:.1f} %"); c4.metric("Prelievo da Rete", f"{grid_s2:.0f} kWh")
-        ec1, ec2, ec3 = st.columns(3)
-        ec1.metric(T["kpi_bill_savings"], f"{savings_s2:.2f} €/anno"); ec2.metric(T["kpi_payback"], f"{payback_s2:.1f} Anni"); ec3.metric("CO₂ Evitata", f"{ac_s2*0.41:.1f} kg/anno")
-    with tab3:
-        st.markdown("### 📊 Bilancio Energetico - Ecosistema V2H")
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric(T["kpi_ac"], f"{ac_s3:.0f} kWh"); c2.metric("Indice Autoconsumo", f"{sc_rate_s3:.1f} %"); c3.metric("Autosufficienza", f"{ss_rate_s3:.1f} %"); c4.metric("Prelievo da Rete", f"{grid_s3:.0f} kWh")
-        ec1, ec2, ec3 = st.columns(3)
-        ec1.metric(T["kpi_bill_savings"], f"{savings_s3:.2f} €/anno"); ec2.metric(T["kpi_payback"], f"{payback_s3:.1f} Anni"); ec3.metric("CO₂ Evitata", f"{ac_s3*0.41:.1f} kg/anno")
+    
+    if has_ev:
+        with tab2:
+            st.markdown("### 📊 Bilancio Energetico - Smart Charging")
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric(T["kpi_ac"], f"{ac_s2:.0f} kWh"); c2.metric("Indice Autoconsumo", f"{sc_rate_s2:.1f} %"); c3.metric("Autosufficienza", f"{ss_rate_s2:.1f} %"); c4.metric("Prelievo da Rete", f"{grid_s2:.0f} kWh")
+            ec1, ec2, ec3 = st.columns(3)
+            ec1.metric(T["kpi_bill_savings"], f"{savings_s2:.2f} €/anno"); ec2.metric(T["kpi_payback"], f"{payback_s2:.1f} Anni"); ec3.metric("CO₂ Evitata", f"{ac_s2*0.41:.1f} kg/anno")
+        with tab3:
+            st.markdown("### 📊 Bilancio Energetico - Ecosistema V2H")
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric(T["kpi_ac"], f"{ac_s3:.0f} kWh"); c2.metric("Indice Autoconsumo", f"{sc_rate_s3:.1f} %"); c3.metric("Autosufficienza", f"{ss_rate_s3:.1f} %"); c4.metric("Prelievo da Rete", f"{grid_s3:.0f} kWh")
+            ec1, ec2, ec3 = st.columns(3)
+            ec1.metric(T["kpi_bill_savings"], f"{savings_s3:.2f} €/anno"); ec2.metric(T["kpi_payback"], f"{payback_s3:.1f} Anni"); ec3.metric("CO₂ Evitata", f"{ac_s3*0.41:.1f} kg/anno")
 
     # Matrice comparativa globale
     st.markdown("### 📈 Matrice Comparativa Tecno-Economica Globale (8760h)")
     with st.expander(T["guide_table_title"], expanded=False):
         st.markdown(T["guide_table_text"])
-    summary_data = {
-        "Parametro Energetico / Finanziario": [
-            "Fabbisogno Annuo Lordo Utente (kWh)", "Volume di Autoconsumo Locale Reale (kWh)", "Energia Eccedentaria Immessa in Rete (kWh)",
-            "Energia Totale Prelevata dalla Rete (kWh)", "Grado di Autoconsumo (Self-Consumption Rate)", "Grado di Indipendenza Energetica (Autosufficienza)",
-            "Investimento Iniziale Stimato (CAPEX Hardware)", "Flusso Economico Positivo Annuale (€/anno)", "Tempo di Ritorno dell'Investimento (PBP)"
-        ],
-        "1. Monodirezionale Standard": [f"{total_demand_annual:.0f}", f"{ac_s1:.0f}", f"{sell_s1:.0f}", f"{grid_s1:.0f}", f"{sc_rate_s1:.1f}%", f"{ss_rate_s1:.1f}%", f"{capex_s1_tot:.0f} €", f"{savings_s1:.2f} €", f"{payback_s1:.1f} anni"],
-        "2. Smart Charging": [f"{total_demand_annual:.0f}", f"{ac_s2:.0f}", f"{sell_s2:.0f}", f"{grid_s2:.0f}", f"{sc_rate_s2:.1f}%", f"{ss_rate_s2:.1f}%", f"{capex_s2_tot:.0f} €", f"{savings_s2:.2f} €", f"{payback_s2:.1f} anni"],
-        "3. Bidirezionale V2H/V2L": [f"{total_demand_annual:.0f}", f"{ac_s3:.0f}", f"{sell_s3:.0f}", f"{grid_s3:.0f}", f"{sc_rate_s3:.1f}%", f"{ss_rate_s3:.1f}%", f"{capex_s3_tot:.0f} €", f"{savings_s3:.2f} €", f"{payback_s3:.1f} anni"]
-    }
+        
+    if has_ev:
+        summary_data = {
+            "Parametro Energetico / Finanziario": [
+                "Fabbisogno Annuo Lordo Utente (kWh)", "Volume di Autoconsumo Locale Reale (kWh)", "Energia Eccedentaria Immessa in Rete (kWh)",
+                "Energia Totale Prelevata dalla Rete (kWh)", "Grado di Autoconsumo (Self-Consumption Rate)", "Grado di Indipendenza Energetica (Autosufficienza)",
+                "Investimento Iniziale Stimato (CAPEX Hardware)", "Flusso Economico Positivo Annuale (€/anno)", "Tempo di Ritorno dell'Investimento (PBP)"
+            ],
+            "1. Monodirezionale Standard": [f"{total_demand_annual:.0f}", f"{ac_s1:.0f}", f"{sell_s1:.0f}", f"{grid_s1:.0f}", f"{sc_rate_s1:.1f}%", f"{ss_rate_s1:.1f}%", f"{capex_s1_tot:.0f} €", f"{savings_s1:.2f} €", f"{payback_s1:.1f} anni"],
+            "2. Smart Charging": [f"{total_demand_annual:.0f}", f"{ac_s2:.0f}", f"{sell_s2:.0f}", f"{grid_s2:.0f}", f"{sc_rate_s2:.1f}%", f"{ss_rate_s2:.1f}%", f"{capex_s2_tot:.0f} €", f"{savings_s2:.2f} €", f"{payback_s2:.1f} anni"],
+            "3. Bidirezionale V2H/V2L": [f"{total_demand_annual:.0f}", f"{ac_s3:.0f}", f"{sell_s3:.0f}", f"{grid_s3:.0f}", f"{sc_rate_s3:.1f}%", f"{ss_rate_s3:.1f}%", f"{capex_s3_tot:.0f} €", f"{savings_s3:.2f} €", f"{payback_s3:.1f} anni"]
+        }
+    else:
+        summary_data = {
+            "Parametro Energetico / Finanziario": [
+                "Fabbisogno Edificio Annuo Lordo (kWh)", "Volume di Autoconsumo Locale Reale (kWh)", "Energia Eccedentaria Immessa in Rete (kWh)",
+                "Energia Totale Prelevata dalla Rete (kWh)", "Grado di Autoconsumo (Self-Consumption Rate)", "Grado di Indipendenza Energetica (Autosufficienza)",
+                "Investimento Iniziale Stimato (CAPEX Impianto)", "Flusso Economico Positivo Annuale (€/anno)", "Tempo di Ritorno dell'Investimento (PBP)"
+            ],
+            "Impianto Standalone": [f"{total_demand_annual:.0f}", f"{ac_s1:.0f}", f"{sell_s1:.0f}", f"{grid_s1:.0f}", f"{sc_rate_s1:.1f}%", f"{ss_rate_s1:.1f}%", f"{capex_s1_tot:.0f} €", f"{savings_s1:.2f} €", f"{payback_s1:.1f} anni"]
+        }
     st.table(summary_data)
 
     # Macro Bilanci
@@ -728,18 +743,19 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
             
         with col_chart2:
             fig_f2, ax_f2 = plt.subplots(figsize=(6, 2.3), dpi=200)
-            h_soc_pct = [(soc_track_h_s3[idx] / battery_capacity_kwh * 100) if battery_capacity_kwh > 0 else 0 for idx in idx_list]
-            ev_soc_pct = [(soc_track_ev_s3[idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
+            target_soc_h = soc_track_h_s3 if has_ev else soc_track_h_s1
+            h_soc_pct = [(target_soc_h[idx] / battery_capacity_kwh * 100) if battery_capacity_kwh > 0 else 0 for idx in idx_list]
             
             ax_f2.plot(range(24), h_soc_pct, label=T["legend_soc_h"], color='#D97706', lw=1.3, marker='s', markersize=2)
             if has_ev:
+                ev_soc_pct = [(soc_track_ev_s3[idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
                 ax_f2.plot(range(24), ev_soc_pct, label="SoC EV (S3 V2H Reale)", color='#10B981', lw=1.3, marker='o', markersize=2)
             setup_plot_style(ax_f2, f"{T['chart_soc_title']}", T["chart_h_x"], "State of Charge [%]")
             ax_f2.set_ylim(-5, 105)
             ax_f2.legend(fontsize=6.5, frameon=False, loc="lower left")
             st.pyplot(fig_f2)
 
-    # --- NUOVA SEZIONE: GRAFICI ANNUALI CONTINUI A 8760 ORE ---
+    # --- SEZIONE: GRAFICI ANNUALI CONTINUI A 8760 ORE ---
     st.markdown("---")
     st.subheader("📈 Analisi delle Curve Continue Annuali (Profilo Completo 8760 Ore)")
     with st.expander(T["guide_8760_charts_title"], expanded=False):
@@ -756,11 +772,19 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         
     with col_ann2:
         fig_ann_soc, ax_ann_soc = plt.subplots(figsize=(7, 2.5), dpi=200)
-        h_soc_annual_pct = [(v / battery_capacity_kwh * 100) if battery_capacity_kwh > 0 else 0 for v in soc_track_h_s3]
-        ax_ann_soc.plot(range(8760), h_soc_annual_pct, label="SoC BESS Casa (Scenario 3)", color="#D97706", lw=0.5)
+        ref_soc_track_h = soc_track_h_s3 if has_ev else soc_track_h_s1
+        h_soc_annual_pct = [(v / battery_capacity_kwh * 100) if battery_capacity_kwh > 0 else 0 for v in ref_soc_track_h]
+        ax_ann_soc.plot(range(8760), h_soc_annual_pct, label="SoC BESS Casa", color="#D97706", lw=0.5)
+        
         if has_ev:
-            ev_soc_annual_pct = [(v / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for v in soc_track_ev_s3]
-            ax_ann_soc.plot(range(8760), ev_soc_annual_pct, label="SoC EV (Scenario 3)", color="#0284C7", lw=0.4, alpha=0.7)
+            ev_soc_s1_pct = [(v / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for v in soc_track_ev_s1]
+            ev_soc_s2_pct = [(v / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for v in soc_track_ev_s2]
+            ev_soc_s3_pct = [(v / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for v in soc_track_ev_s3]
+            
+            ax_ann_soc.plot(range(8760), ev_soc_s1_pct, label="SoC EV (S1 Standard)", color="#EF4444", lw=0.4, alpha=0.6)
+            ax_ann_soc.plot(range(8760), ev_soc_s2_pct, label="SoC EV (S2 Smart)", color="#3B82F6", lw=0.4, alpha=0.6)
+            ax_ann_soc.plot(range(8760), ev_soc_s3_pct, label="SoC EV (S3 V2H)", color="#10B981", lw=0.4, alpha=0.7)
+            
         setup_plot_style(ax_ann_soc, "Evoluzione dello Stato di Carica (8760 h)", "Ore dell'Anno [1-8760]", "Stato di Carica [%]")
         ax_ann_soc.set_ylim(-5, 105)
         ax_ann_soc.legend(fontsize=6.5, frameon=False, loc="lower left")
@@ -772,15 +796,4 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
     fig12, ax12 = plt.subplots(figsize=(12, 2.4), dpi=200)
     x_idx = range(1, 13)
     ax12.bar([x - 0.22 for x in x_idx], monthly_load_with_ev_s1_agg, width=0.18, label=T["final_l1"], color='#94A3B8', alpha=0.25)
-    ax12.bar([x - 0.07 for x in x_idx], monthly_ac_s1_agg, width=0.15, label=T["final_l2"], color='#EF4444', alpha=0.7)
-    ax12.bar([x + 0.07 for x in x_idx], monthly_ac_s2_agg, width=0.15, label=T["final_l3"], color='#3B82F6', alpha=0.8)
-    ax12.bar([x + 0.22 for x in x_idx], monthly_ac_s3_agg, width=0.15, label=T["final_l4"], color='#10B981', alpha=0.9)
-    setup_plot_style(ax12, T["final_chart_sub"], T["final_x"], T["chart_y_kwh"])
-    ax12.set_xticks(x_idx)
-    ax12.set_xticklabels(T["months_labels"])
-    ax12.legend(fontsize=7, frameon=False, loc="upper right")
-    st.pyplot(fig12)
-
-# --- FOOTER ---
-st.markdown("---")
-st.caption("RES-EV Microgrid Core Platform | 8760-Hour Chronological Solver | Engine: PVGIS API & Open-Meteo Weather Dataset")
+    ax12.bar([x - 0.07 for x in x_idx], monthly_ac_s1_agg,
