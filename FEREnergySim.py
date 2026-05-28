@@ -414,9 +414,9 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
 
         prod, house_load = sim["fer"][i], sim["load"][i]
         diretto = min(prod, house_load)
-        local_ac = directo
-        surplus = prod - directo
-        deficit = house_load - directo
+        local_ac = diretto
+        surplus = prod - diretto
+        deficit = house_load - diretto
 
         if has_ev and is_connected:
             needed_energy = ev_capacity_kwh - current_ev_soc_s3
