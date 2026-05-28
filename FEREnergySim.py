@@ -61,7 +61,7 @@ LANG_DICT = {
 
         #### 2. Logica dei Tre Scenari di Controllo Comparati
         * **Scenario 1 (Monodirezionale Standard):** L'EV assorbe potenza dalla Wallbox a tasso costante esclusivamente nelle ore in cui è fisicamente connesso, ripartendo linearmente il fabbisogno chilometrico giornaliero. Il BESS agisce da tampone locale passivo.
-        * **Scenario 2 (Smart Charging):** La ricarica dell'EV viene modulata attimo per attimo inseguendo l'eccedenza di produzione FER generata sul nodo domestico al netto dei carichi di casa. La ricarica da rete interviene como emergenza solo se il SoC dell'auto scende sotto la soglia minima di sicurezza per il viaggio.
+        * **Scenario 2 (Smart Charging):** L'EV charging viene modulata attimo per attimo inseguendo l'eccedenza di produzione FER generata sul nodo domestico al netto dei carichi di casa. La ricarica da rete interviene como emergenza solo se il SoC dell'auto scende sotto la soglia minima di sicurezza per il viaggio.
         * **Scenario 3 (Bidirectional V2H):** La batteria dell'EV diventa un accumulo mobile cooperante in parallelo al BESS domestico. Nelle ore di connessione domestica, se il veicolo ha carica residua superiore alla soglia di viaggio, inietta potenza nella rete interna della casa per abbattere i picchi termici serali ed elettrici (*Peak Shaving*).
         """,
         
@@ -128,7 +128,7 @@ LANG_DICT = {
         "eco_cost": "Costo Energia Prelevata (€/kWh)", "eco_sell": "Tariffa Immissione / RID (€/kWh)", "eco_capex": "CAPEX Impianto Base (PV+Wind) (€)",
         
         "ev_cap": "Capacità Batteria EV (kWh)", "ev_km": "Distanza Giornaliera (km)", "ev_whkm": "Consumo Specifico (Wh/km)",
-        "ev_v2hp": "Potenza Wallbox / Inverter V2H (kW)", "ev_v2heff": "Efficienza Convertitore (%)", "ev_soc_init": "SoC Iniziale di Partenza (%)", "ev_soc_min": "SoC Minimo di Sicurezza per Viaggio (%)",
+        "ev_v2hp": "Potenza Wallbox / Inverter V2H (kW)", "ev_v2heff": "Converter Efficiency (%)", "ev_soc_init": "Initial SoC (%)", "ev_soc_min": "Safety Trip Minimum SoC (%)",
         "ev_capex_s1": "Costo Aggiuntivo Wallbox S1 Standard (€)", "ev_capex_s2": "Costo Aggiuntivo Smart Wallbox S2 (€)", "ev_capex_s3": "Costo Aggiuntivo Stazione Bidirezionale V2H S3 (€)",
         "ev_grid_matrix": "Matrice di Disponibilità Oraria dell'EV alla Rete Domestica (Spuntato = Connesso alla Wallbox)",
         
@@ -275,9 +275,10 @@ st.caption(T["subtitle"])
 with st.expander(T["doc_expander_title"], expanded=False):
     st.markdown(T["doc_global_text"])
 
-# Inizializzazione stabile e persistente dello stato di sessione geografico
+# Inizializzazione stabile e persistente dello stato di sessione geografico e di simulazione
 if "lat" not in st.session_state: st.session_state.lat = 42.3498
 if "lon" not in st.session_state: st.session_state.lon = 13.3995
+if "sim_data" not in st.session_state: st.session_state.sim_data = None
 
 # --- PANNELLO DI CONTROLLO PARAMETRI ---
 st.markdown(f"## {T['params_title']}")
@@ -460,7 +461,7 @@ def get_8760_profiles():
         "temp": temp_2m, "wind": wind_10m
     }
 
-# --- AVVIO COMPUTAZIONE GLOBALE ---
+# --- GRUPPO DI CALCOLO PRINCIPALE ---
 if st.button(T["run_btn"], type="primary", use_container_width=True):
     sim = get_8760_profiles()
     
@@ -628,7 +629,6 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
             soc_track_h_s3.append(soc_h_s3)
             soc_track_ev_s3.append(current_ev_soc_s3)
 
-    # Aggregazione mensile esatta
     monthly_load_agg = [0]*12
     monthly_load_with_ev_s1_agg = [0]*12
     monthly_ac_s1_agg, monthly_ac_s2_agg, monthly_ac_s3_agg = [0]*12, [0]*12, [0]*12
@@ -642,14 +642,12 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         monthly_load_with_ev_s1_agg[m] = sum(total_load_with_ev_s1[c_idx : c_idx + h_count])
         monthly_sol_agg[m] = sum(sim["pv"][c_idx : c_idx + h_count])
         monthly_wind_agg[m] = sum(sim["wt"][c_idx : c_idx + h_count])
-        
         monthly_ac_s1_agg[m] = sum(ac_s1_hourly[c_idx : c_idx + h_count])
         if has_ev:
             monthly_ac_s2_agg[m] = sum(ac_s2_hourly[c_idx : c_idx + h_count])
             monthly_ac_s3_agg[m] = sum(ac_s3_hourly[c_idx : c_idx + h_count])
         c_idx += h_count
 
-    # Finanza 8760h coerente
     savings_s1 = (ac_s1 * cost_electricity) + (sell_s1 * val_injection)
     capex_s1_tot = capex_base + capex_ev_s1
     payback_s1 = capex_s1_tot / savings_s1 if savings_s1 > 0 else 99
@@ -661,26 +659,46 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         capex_s3_tot = capex_base + capex_ev_s3
         payback_s2 = capex_s2_tot / savings_s2 if savings_s2 > 0 else 99
         payback_s3 = capex_s3_tot / savings_s3 if savings_s3 > 0 else 99
+    else:
+        savings_s2, savings_s3, capex_s2_tot, capex_s3_tot, payback_s2, payback_s3 = 0,0,0,0,0,0
     
     total_demand_annual = sum(sim["load"]) + annual_ev_kwh
     total_generation_annual = sum(sim["fer"])
 
-    # --- RENDERIZZAZIONE INTERFACCIA RISULTATI ---
+    # Salva tutto nello stato di sessione persistente prima del rendering
+    st.session_state.sim_data = {
+        "sim": sim, "hours_indices": hours_indices, "has_ev": has_ev,
+        "total_demand_annual": total_demand_annual, "total_generation_annual": total_generation_annual,
+        "ac_s1": ac_s1, "grid_s1": grid_s1, "sell_s1": sell_s1, "savings_s1": savings_s1, "capex_s1_tot": capex_s1_tot, "payback_s1": payback_s1,
+        "ac_s2": ac_s2, "grid_s2": grid_s2, "sell_s2": sell_s2, "savings_s2": savings_s2, "capex_s2_tot": capex_s2_tot, "payback_s2": payback_s2,
+        "ac_s3": ac_s3, "grid_s3": grid_s3, "sell_s3": sell_s3, "savings_s3": savings_s3, "capex_s3_tot": capex_s3_tot, "payback_s3": payback_s3,
+        "monthly_load_with_ev_s1_agg": monthly_load_with_ev_s1_agg, "monthly_ac_s1_agg": monthly_ac_s1_agg,
+        "monthly_ac_s2_agg": monthly_ac_s2_agg, "monthly_ac_s3_agg": monthly_ac_s3_agg,
+        "monthly_sol_agg": monthly_sol_agg, "monthly_wind_agg": monthly_wind_agg,
+        "soc_track_h_s1": soc_track_h_s1, "soc_track_ev_s1": soc_track_ev_s1,
+        "soc_track_h_s2": soc_track_h_s2, "soc_track_ev_s2": soc_track_ev_s2,
+        "soc_track_h_s3": soc_track_h_s3, "soc_track_ev_s3": soc_track_ev_s3,
+        "total_load_with_ev_s1": total_load_with_ev_s1
+    }
+
+# --- RENDERING INTERFACCIA BASATO SULLO STATO MEMORIZZATO ---
+if st.session_state.sim_data is not None:
+    sd = st.session_state.sim_data
+    sim = sd["sim"]
+    hours_indices = sd["hours_indices"]
+    has_ev = sd["has_ev"]
+    
     st.markdown(f"## {T['results_title']}")
     st.markdown(f"<div class='custom-note-result'>{T['results_help']}</div>", unsafe_allow_html=True)
     
-    with st.expander(T["guide_metrics_title"], expanded=False):
-        st.markdown(T["guide_metrics_text"])
-        
-    sc_rate_s1 = (ac_s1 / total_generation_annual) * 100 if total_generation_annual > 0 else 0
-    ss_rate_s1 = (ac_s1 / total_demand_annual) * 100 if total_demand_annual > 0 else 0
+    sc_rate_s1 = (sd["ac_s1"] / sd["total_generation_annual"]) * 100 if sd["total_generation_annual"] > 0 else 0
+    ss_rate_s1 = (sd["ac_s1"] / sd["total_demand_annual"]) * 100 if sd["total_demand_annual"] > 0 else 0
     
     if has_ev:
-        sc_rate_s2 = (ac_s2 / total_generation_annual) * 100 if total_generation_annual > 0 else 0
-        ss_rate_s2 = (ac_s2 / total_demand_annual) * 100 if total_demand_annual > 0 else 0
-        sc_rate_s3 = (ac_s3 / total_generation_annual) * 100 if total_generation_annual > 0 else 0
-        ss_rate_s3 = (ac_s3 / total_demand_annual) * 100 if total_demand_annual > 0 else 0
-
+        sc_rate_s2 = (sd["ac_s2"] / sd["total_generation_annual"]) * 100 if sd["total_generation_annual"] > 0 else 0
+        ss_rate_s2 = (sd["ac_s2"] / sd["total_demand_annual"]) * 100 if sd["total_demand_annual"] > 0 else 0
+        sc_rate_s3 = (sd["ac_s3"] / sd["total_generation_annual"]) * 100 if sd["total_generation_annual"] > 0 else 0
+        ss_rate_s3 = (sd["ac_s3"] / sd["total_demand_annual"]) * 100 if sd["total_demand_annual"] > 0 else 0
         tab1, tab2, tab3 = st.tabs(["🛑 Scenario 1: Monodirezionale Standard", "☀️ Scenario 2: Smart Charging", "🔄 Scenario 3: Bidirectional V2H"])
     else:
         tab1, = st.tabs(["🏠 Configurazione Impianto Base (Senza EV)"])
@@ -688,58 +706,44 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
     with tab1:
         st.markdown(f"### 📊 Bilancio Energetico - {'Configurazione Passiva' if has_ev else 'Impianto Base'}")
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric(T["kpi_ac"], f"{ac_s1:.0f} kWh"); c2.metric("Indice Autoconsumo", f"{sc_rate_s1:.1f} %"); c3.metric("Autosufficienza", f"{ss_rate_s1:.1f} %"); c4.metric("Prelievo da Rete", f"{grid_s1:.0f} kWh")
+        c1.metric(T["kpi_ac"], f"{sd['ac_s1']:.0f} kWh"); c2.metric("Indice Autoconsumo", f"{sc_rate_s1:.1f} %"); c3.metric("Autosufficienza", f"{ss_rate_s1:.1f} %"); c4.metric("Prelievo da Rete", f"{sd['grid_s1']:.0f} kWh")
         ec1, ec2, ec3 = st.columns(3)
-        ec1.metric(T["kpi_bill_savings"], f"{savings_s1:.2f} €/anno"); ec2.metric(T["kpi_payback"], f"{payback_s1:.1f} Anni"); ec3.metric("CO₂ Evitata", f"{ac_s1*0.41:.1f} kg/anno")
+        ec1.metric(T["kpi_bill_savings"], f"{sd['savings_s1']:.2f} €/anno"); ec2.metric(T["kpi_payback"], f"{sd['payback_s1']:.1f} Anni"); ec3.metric("CO₂ Evitata", f"{sd['ac_s1']*0.41:.1f} kg/anno")
     
     if has_ev:
         with tab2:
             st.markdown("### 📊 Bilancio Energetico - Smart Charging")
             c1, c2, c3, c4 = st.columns(4)
-            c1.metric(T["kpi_ac"], f"{ac_s2:.0f} kWh"); c2.metric("Indice Autoconsumo", f"{sc_rate_s2:.1f} %"); c3.metric("Autosufficienza", f"{ss_rate_s2:.1f} %"); c4.metric("Prelievo da Rete", f"{grid_s2:.0f} kWh")
+            c1.metric(T["kpi_ac"], f"{sd['ac_s2']:.0f} kWh"); c2.metric("Indice Autoconsumo", f"{sc_rate_s2:.1f} %"); c3.metric("Autosufficienza", f"{ss_rate_s2:.1f} %"); c4.metric("Prelievo da Rete", f"{sd['grid_s2']:.0f} kWh")
             ec1, ec2, ec3 = st.columns(3)
-            ec1.metric(T["kpi_bill_savings"], f"{savings_s2:.2f} €/anno"); ec2.metric(T["kpi_payback"], f"{payback_s2:.1f} Anni"); ec3.metric("CO₂ Evitata", f"{ac_s2*0.41:.1f} kg/anno")
+            ec1.metric(T["kpi_bill_savings"], f"{sd['savings_s2']:.2f} €/anno"); ec2.metric(T["kpi_payback"], f"{sd['payback_s2']:.1f} Anni"); ec3.metric("CO₂ Evitata", f"{sd['ac_s2']*0.41:.1f} kg/anno")
         with tab3:
             st.markdown("### 📊 Bilancio Energetico - Ecosistema V2H")
             c1, c2, c3, c4 = st.columns(4)
-            c1.metric(T["kpi_ac"], f"{ac_s3:.0f} kWh"); c2.metric("Indice Autoconsumo", f"{sc_rate_s3:.1f} %"); c3.metric("Autosufficienza", f"{ss_rate_s3:.1f} %"); c4.metric("Prelievo da Rete", f"{grid_s3:.0f} kWh")
+            c1.metric(T["kpi_ac"], f"{sd['ac_s3']:.0f} kWh"); c2.metric("Indice Autoconsumo", f"{sc_rate_s3:.1f} %"); c3.metric("Autosufficienza", f"{ss_rate_s3:.1f} %"); c4.metric("Prelievo da Rete", f"{sd['grid_s3']:.0f} kWh")
             ec1, ec2, ec3 = st.columns(3)
-            ec1.metric(T["kpi_bill_savings"], f"{savings_s3:.2f} €/anno"); ec2.metric(T["kpi_payback"], f"{payback_s3:.1f} Anni"); ec3.metric("CO₂ Evitata", f"{ac_s3*0.41:.1f} kg/anno")
+            ec1.metric(T["kpi_bill_savings"], f"{sd['savings_s3']:.2f} €/anno"); ec2.metric(T["kpi_payback"], f"{sd['payback_s3']:.1f} Anni"); ec3.metric("CO₂ Evitata", f"{sd['ac_s3']*0.41:.1f} kg/anno")
 
-    # Matrice comparativa globale
     st.markdown("### 📈 Matrice Comparativa Tecno-Economica Globale (8760h)")
-    with st.expander(T["guide_table_title"], expanded=False):
-        st.markdown(T["guide_table_text"])
-        
     if has_ev:
         summary_data = {
-            "Parametro Energetico / Finanziario": [
-                "Fabbisogno Annuo Lordo Utente (kWh)", "Volume di Autoconsumo Locale Reale (kWh)", "Energia Eccedentaria Immessa in Rete (kWh)",
-                "Energia Totale Prelevata dalla Rete (kWh)", "Grado di Autoconsumo (Self-Consumption Rate)", "Grado di Indipendenza Energetica (Autosufficienza)",
-                "Investimento Iniziale Stimato (CAPEX Hardware)", "Flusso Economico Positivo Annuale (€/anno)", "Tempo di Ritorno dell'Investimento (PBP)"
-            ],
-            "1. Monodirezionale Standard": [f"{total_demand_annual:.0f}", f"{ac_s1:.0f}", f"{sell_s1:.0f}", f"{grid_s1:.0f}", f"{sc_rate_s1:.1f}%", f"{ss_rate_s1:.1f}%", f"{capex_s1_tot:.0f} €", f"{savings_s1:.2f} €", f"{payback_s1:.1f} anni"],
-            "2. Smart Charging": [f"{total_demand_annual:.0f}", f"{ac_s2:.0f}", f"{sell_s2:.0f}", f"{grid_s2:.0f}", f"{sc_rate_s2:.1f}%", f"{ss_rate_s2:.1f}%", f"{capex_s2_tot:.0f} €", f"{savings_s2:.2f} €", f"{payback_s2:.1f} anni"],
-            "3. Bidirezionale V2H/V2L": [f"{total_demand_annual:.0f}", f"{ac_s3:.0f}", f"{sell_s3:.0f}", f"{grid_s3:.0f}", f"{sc_rate_s3:.1f}%", f"{ss_rate_s3:.1f}%", f"{capex_s3_tot:.0f} €", f"{savings_s3:.2f} €", f"{payback_s3:.1f} anni"]
+            "Parametro Energetico / Finanziario": ["Fabbisogno Annuo Lordo Utente (kWh)", "Volume di Autoconsumo Locale Reale (kWh)", "Energia Eccedentaria Immessa in Rete (kWh)", "Energia Totale Prelevata dalla Rete (kWh)", "Grado di Autoconsumo", "Grado di Autosufficienza", "Investimento Hardware (CAPEX)", "Risparmio Economico Annuo", "Tempo di Ritorno (PBP)"],
+            "1. Monodirezionale Standard": [f"{sd['total_demand_annual']:.0f}", f"{sd['ac_s1']:.0f}", f"{sd['sell_s1']:.0f}", f"{sd['grid_s1']:.0f}", f"{sc_rate_s1:.1f}%", f"{ss_rate_s1:.1f}%", f"{sd['capex_s1_tot']:.0f} €", f"{sd['savings_s1']:.2f} €", f"{sd['payback_s1']:.1f} anni"],
+            "2. Smart Charging": [f"{sd['total_demand_annual']:.0f}", f"{sd['ac_s2']:.0f}", f"{sd['sell_s2']:.0f}", f"{sd['grid_s2']:.0f}", f"{sc_rate_s2:.1f}%", f"{ss_rate_s2:.1f}%", f"{sd['capex_s2_tot']:.0f} €", f"{sd['savings_s2']:.2f} €", f"{sd['payback_s2']:.1f} anni"],
+            "3. Bidirezionale V2H/V2L": [f"{sd['total_demand_annual']:.0f}", f"{sd['ac_s3']:.0f}", f"{sd['sell_s3']:.0f}", f"{sd['grid_s3']:.0f}", f"{sc_rate_s3:.1f}%", f"{ss_rate_s3:.1f}%", f"{sd['capex_s3_tot']:.0f} €", f"{sd['savings_s3']:.2f} €", f"{sd['payback_s3']:.1f} anni"]
         }
     else:
         summary_data = {
-            "Parametro Energetico / Finanziario": [
-                "Fabbisogno Edificio Annuo Lordo (kWh)", "Volume di Autoconsumo Locale Reale (kWh)", "Energia Eccedentaria Immessa in Rete (kWh)",
-                "Energia Totale Prelevata dalla Rete (kWh)", "Grado di Autoconsumo (Self-Consumption Rate)", "Grado di Indipendenza Energetica (Autosufficienza)",
-                "Investimento Iniziale Stimato (CAPEX Impianto)", "Flusso Economico Positivo Annuale (€/anno)", "Tempo di Ritorno dell'Investimento (PBP)"
-            ],
-            "Impianto Standalone": [f"{total_demand_annual:.0f}", f"{ac_s1:.0f}", f"{sell_s1:.0f}", f"{grid_s1:.0f}", f"{sc_rate_s1:.1f}%", f"{ss_rate_s1:.1f}%", f"{capex_s1_tot:.0f} €", f"{savings_s1:.2f} €", f"{payback_s1:.1f} anni"]
+            "Parametro Energetico / Finanziario": ["Fabbisogno Edificio Annuo Lordo (kWh)", "Volume di Autoconsumo Locale Reale (kWh)", "Energia Eccedentaria Immessa in Rete (kWh)", "Energia Totale Prelevata dalla Rete (kWh)", "Grado di Autoconsumo", "Grado di Autosufficienza", "Investimento Impianto (CAPEX)", "Risparmio Economico Annuo", "Tempo di Ritorno (PBP)"],
+            "Impianto Standalone": [f"{sd['total_demand_annual']:.0f}", f"{sd['ac_s1']:.0f}", f"{sd['sell_s1']:.0f}", f"{sd['grid_s1']:.0f}", f"{sc_rate_s1:.1f}%", f"{ss_rate_s1:.1f}%", f"{sd['capex_s1_tot']:.0f} €", f"{sd['savings_s1']:.2f} €", f"{sd['payback_s1']:.1f} anni"]
         }
     st.table(summary_data)
 
-    # --- ENERGY MONITOR DASHBOARD ---
-    st.markdown("### 🎯 Energy Monitor & Bilancio di Sostenibilità")
-    dash_ac = ac_s3 if has_ev else ac_s1
-    dash_grid = grid_s3 if has_ev else grid_s1
-    dash_sell = sell_s3 if has_ev else sell_s1
-    
-    col_dash1, col_dash2, col_dash3 = st.columns([1, 1, 1])
+    # Dashboard Monitor Torte
+    dash_ac = sd["ac_s3"] if has_ev else sd["ac_s1"]
+    dash_grid = sd["grid_s3"] if has_ev else sd["grid_s1"]
+    dash_sell = sd["sell_s3"] if has_ev else sd["sell_s1"]
+    col_dash1, col_dash2, col_dash3 = st.columns(3)
     with col_dash1:
         st.markdown("**1. Come copro il mio Fabbisogno?**")
         fig_pie1, ax_pie1 = plt.subplots(figsize=(3, 3), dpi=150)
@@ -747,28 +751,28 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         ax_pie1.axis('equal')
         st.pyplot(fig_pie1)
     with col_dash2:
-        st.markdown("**2. Che fine fa la mia Production?**")
+        st.markdown("**2. Che fine fa la mia Produzione?**")
         fig_pie2, ax_pie2 = plt.subplots(figsize=(3, 3), dpi=150)
         ax_pie2.pie([dash_ac, dash_sell], labels=['Autoconsumo', 'Immissione Rete'], colors=['#10B981', '#3B82F6'], autopct='%1.1f%%', startangle=90, textprops={'fontsize': 8})
         ax_pie2.axis('equal')
         st.pyplot(fig_pie2)
     with col_dash3:
         st.markdown("**3. Verifica Quadratura Nodi**")
-        st.info(f"Produzione: {total_generation_annual:.0f} kWh\nFabbisogno: {total_demand_annual:.0f} kWh")
+        st.info(f"Produzione: {sd['total_generation_annual']:.0f} kWh\nFabbisogno: {sd['total_demand_annual']:.0f} kWh")
 
-    # Macro Bilanci
+    # Macro Bilanci Mensili
     st.markdown("### 📊 Macro Bilanci Energetici su Base Mensile")
     col_g1, col_g2 = st.columns(2)
     with col_g1:
         fig_mac_gen, ax_mac_gen = plt.subplots(figsize=(6, 2.2), dpi=200)
-        ax_mac_gen.plot(range(1, 13), monthly_sol_agg, label="Fotovoltaico", color="#D97706", lw=1.2)
-        ax_mac_gen.bar(range(1, 13), monthly_wind_agg, label="Eolico", color="#2563EB", alpha=0.15, width=0.35)
+        ax_mac_gen.plot(range(1, 13), sd["monthly_sol_agg"], label="Fotovoltaico", color="#D97706", lw=1.2)
+        ax_mac_gen.bar(range(1, 13), sd["monthly_wind_agg"], label="Eolico", color="#2563EB", alpha=0.15, width=0.35)
         setup_plot_style(ax_mac_gen, T["chart_gen_title"], T["chart_x_month"], T["chart_y_kwh"])
         ax_mac_gen.legend(fontsize=6.5, frameon=False)
         st.pyplot(fig_mac_gen)
     with col_g2:
         fig_mac_load, ax_mac_load = plt.subplots(figsize=(6, 2.2), dpi=200)
-        ax_mac_load.plot(range(1, 13), monthly_load_with_ev_s1_agg, color="#DC2626", lw=1.6)
+        ax_mac_load.plot(range(1, 13), sd["monthly_load_with_ev_s1_agg"], color="#DC2626", lw=1.6)
         setup_plot_style(ax_mac_load, T["chart_load_title"], T["chart_x_month"], T["chart_y_kwh"])
         st.pyplot(fig_mac_load)
 
@@ -778,54 +782,51 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
     for season_name, idx_list in hours_indices.items():
         st.markdown(f"#### {season_name}")
         col_chart1, col_chart2 = st.columns(2)
-        
         with col_chart1:
             fig_f1, ax_f1 = plt.subplots(figsize=(6, 2.5), dpi=200)
             ax_f1.plot(range(24), [sim["fer"][idx] for idx in idx_list], label="FER", color="#059669", lw=1.5)
             ax_f1.fill_between(range(24), [sim["heating"][idx] + sim["cooling"][idx] for idx in idx_list], alpha=0.3, color="#EF4444", label="Carico Clima")
             ax_f1.plot(range(24), [sim["load"][idx] for idx in idx_list], label="Carico Totale", color="#475569", lw=1.2, linestyle="--")
             ax_meteo = ax_f1.twinx()
-            ax_meteo.plot(range(24), [sim["temp"][idx] for idx in idx_list], color="#F59E0B", lw=1, linestyle=":", label="Temp Est (°C)")
+            ax_meteo.plot(range(24), [sim["temp"][idx] for idx in idx_list], color="#F59E0B", lw=1, linestyle=":")
             setup_plot_style(ax_f1, f"{T['chart_hourly_title']}", T["chart_h_x"], "Potenza [kW]")
             st.pyplot(fig_f1)
             
         with col_chart2:
             if has_ev:
-                # 1. Grafico S1 Standard
+                # S1
                 fig_f2_s1, ax_f2_s1 = plt.subplots(figsize=(6, 1.6), dpi=200)
                 for h in range(24):
                     if ev_hours_status[h]:
                         ax_f2_s1.axvspan(h-0.5, h+0.5, color='#E0F2FE', alpha=0.4, lw=0, label="EV Connesso" if h==19 else "")
-                h_soc_pct_s1 = [(soc_track_h_s1[idx] / battery_capacity_kwh * 100) if battery_capacity_kwh > 0 else 0 for idx in idx_list]
-                ev_soc_pct_s1 = [(soc_track_ev_s1[idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
+                h_soc_pct_s1 = [(sd["soc_track_h_s1"][idx] / battery_capacity_kwh * 100) if battery_capacity_kwh > 0 else 0 for idx in idx_list]
+                ev_soc_pct_s1 = [(sd["soc_track_ev_s1"][idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
                 ax_f2_s1.plot(range(24), h_soc_pct_s1, label="SoC BESS Casa", color='#D97706', lw=1.3)
                 ax_f2_s1.plot(range(24), ev_soc_pct_s1, label="SoC EV", color='#EF4444', lw=1.3)
                 setup_plot_style(ax_f2_s1, "S1: Standard Monodirezionale", T["chart_h_x"], "SoC [%]")
                 ax_f2_s1.set_ylim(-5, 105)
                 ax_f2_s1.legend(fontsize=6, frameon=True, loc="lower left")
                 st.pyplot(fig_f2_s1)
-                
-                # 2. Grafico S2 Smart
+                # S2
                 fig_f2_s2, ax_f2_s2 = plt.subplots(figsize=(6, 1.6), dpi=200)
                 for h in range(24):
                     if ev_hours_status[h]:
                         ax_f2_s2.axvspan(h-0.5, h+0.5, color='#E0F2FE', alpha=0.4, lw=0, label="EV Connesso" if h==19 else "")
-                h_soc_pct_s2 = [(soc_track_h_s2[idx] / battery_capacity_kwh * 100) if battery_capacity_kwh > 0 else 0 for idx in idx_list]
-                ev_soc_pct_s2 = [(soc_track_ev_s2[idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
+                h_soc_pct_s2 = [(sd["soc_track_h_s2"][idx] / battery_capacity_kwh * 100) if battery_capacity_kwh > 0 else 0 for idx in idx_list]
+                ev_soc_pct_s2 = [(sd["soc_track_ev_s2"][idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
                 ax_f2_s2.plot(range(24), h_soc_pct_s2, label="SoC BESS Casa", color='#B45309', lw=1.3)
                 ax_f2_s2.plot(range(24), ev_soc_pct_s2, label="SoC EV", color='#3B82F6', lw=1.3)
                 setup_plot_style(ax_f2_s2, "S2: Smart Charging", T["chart_h_x"], "SoC [%]")
                 ax_f2_s2.set_ylim(-5, 105)
                 ax_f2_s2.legend(fontsize=6, frameon=True, loc="lower left")
                 st.pyplot(fig_f2_s2)
-                
-                # 3. Grafico S3 V2H
+                # S3
                 fig_f2_s3, ax_f2_s3 = plt.subplots(figsize=(6, 1.6), dpi=200)
                 for h in range(24):
                     if ev_hours_status[h]:
                         ax_f2_s3.axvspan(h-0.5, h+0.5, color='#E0F2FE', alpha=0.4, lw=0, label="EV Connesso" if h==19 else "")
-                h_soc_pct_s3 = [(soc_track_h_s3[idx] / battery_capacity_kwh * 100) if battery_capacity_kwh > 0 else 0 for idx in idx_list]
-                ev_soc_pct_s3 = [(soc_track_ev_s3[idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
+                h_soc_pct_s3 = [(sd["soc_track_h_s3"][idx] / battery_capacity_kwh * 100) if battery_capacity_kwh > 0 else 0 for idx in idx_list]
+                ev_soc_pct_s3 = [(sd["soc_track_ev_s3"][idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
                 ax_f2_s3.plot(range(24), h_soc_pct_s3, label="SoC BESS Casa", color='#78350F', lw=1.3)
                 ax_f2_s3.plot(range(24), ev_soc_pct_s3, label="SoC EV", color='#10B981', lw=1.3)
                 setup_plot_style(ax_f2_s3, "S3: Bidirezionale V2H", T["chart_h_x"], "SoC [%]")
@@ -834,24 +835,23 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
                 st.pyplot(fig_f2_s3)
             else:
                 fig_f2, ax_f2 = plt.subplots(figsize=(6, 2.5), dpi=200)
-                h_soc_pct = [(soc_track_h_s1[idx] / battery_capacity_kwh * 100) if battery_capacity_kwh > 0 else 0 for idx in idx_list]
+                h_soc_pct = [(sd["soc_track_h_s1"][idx] / battery_capacity_kwh * 100) if battery_capacity_kwh > 0 else 0 for idx in idx_list]
                 ax_f2.plot(range(24), h_soc_pct, label="SoC BESS Casa", color='#D97706', lw=1.5)
                 setup_plot_style(ax_f2, T["chart_soc_title"], T["chart_h_x"], "SoC [%]")
                 ax_f2.set_ylim(-5, 105)
                 ax_f2.legend(fontsize=6, frameon=True, loc="lower right")
                 st.pyplot(fig_f2)
 
-    # --- SEZIONE: GRAFICI ANNUALI CONTINUI A 8760 ORE (CON FILTRO INTERATTIVO) ---
+    # --- SEZIONE: GRAFICI ANNUALI CONTINUI A 8760 ORE (ZOOM INTERATTIVO PERSISTENTE) ---
     st.markdown("---")
     st.subheader(T["guide_8760_charts_title"])
-    with st.expander(T["guide_8760_charts_text"], expanded=True):
-        # Slider interattivo per selezionare la finestra temporale (asse X condiviso)
-        start_hour, end_hour = st.slider(
-            "Seleziona l'intervallo di ore dell'anno da visualizzare (Zoom asse orario)",
-            min_value=1, max_value=8760, value=(1, 8760), step=1
-        )
     
-    # Conversione range ad indici di array (0-based)
+    # Questo slider ora causa il re-run, ma i dati sopra NON spariscono più perché ancorati alla sessione!
+    start_hour, end_hour = st.slider(
+        "Seleziona la finestra oraria da analizzare (Zoom asse orario condiviso su tutti i grafici sotto)",
+        min_value=1, max_value=8760, value=(1, 8760), step=1
+    )
+    
     s_idx = start_hour - 1
     e_idx = end_hour
     t_range = range(start_hour, end_hour + 1) if (end_hour - start_hour) > 0 else [start_hour]
@@ -859,42 +859,40 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
     col_ann1, col_ann2 = st.columns(2)
     with col_ann1:
         fig_ann_flows, ax_ann_flows = plt.subplots(figsize=(7, 2.5), dpi=200)
-        # Applichiamo lo zoom orario sui dati estratti
         ax_ann_flows.plot(t_range, sim["fer"][s_idx:e_idx], color="#10B981", alpha=0.6, lw=0.6, label="Generazione FER Totale")
-        ax_ann_flows.plot(t_range, total_load_with_ev_s1[s_idx:e_idx], color="#EF4444", alpha=0.5, lw=0.6, label="Carico Utente Lordo")
+        ax_ann_flows.plot(t_range, sd["total_load_with_ev_s1"][s_idx:e_idx], color="#EF4444", alpha=0.5, lw=0.6, label="Carico Utente Lordo")
         setup_plot_style(ax_ann_flows, "Andamento Potenze nel Periodo Selezionato", f"Ore dell'Anno [{start_hour} - {end_hour}]", "kW")
         ax_ann_flows.legend(fontsize=6, frameon=False, loc="upper right")
         st.pyplot(fig_ann_flows)
         
     with col_ann2:
         if has_ev:
-            # Maschera dinamica zoomata per le ore di connessione EV nel periodo scelto
             conn_mask = [100 if ev_hours_status[h % 24] else np.nan for h in range(start_hour, end_hour + 1)]
             
-            # 1. Continuo S1 Standard zoomato
+            # S1 zoomato
             fig_ann_soc_s1, ax_ann_soc_s1 = plt.subplots(figsize=(7, 1.5), dpi=200)
-            ax_ann_soc_s1.plot(t_range, [(v / battery_capacity_kwh * 100) for v in soc_track_h_s1[s_idx:e_idx]], label="SoC BESS Casa", color="#D97706", lw=0.6)
-            ax_ann_soc_s1.plot(t_range, [(v / ev_capacity_kwh * 100) for v in soc_track_ev_s1[s_idx:e_idx]], label="SoC EV", color="#EF4444", lw=0.5)
+            ax_ann_soc_s1.plot(t_range, [(v / battery_capacity_kwh * 100) for v in sd["soc_track_h_s1"][s_idx:e_idx]], label="SoC BESS Casa", color="#D97706", lw=0.6)
+            ax_ann_soc_s1.plot(t_range, [(v / ev_capacity_kwh * 100) for v in sd["soc_track_ev_s1"][s_idx:e_idx]], label="SoC EV", color="#EF4444", lw=0.5)
             ax_ann_soc_s1.plot(t_range, conn_mask, label="EV Connesso (Fascia)", color="#E0F2FE", lw=2.5, alpha=0.5)
             setup_plot_style(ax_ann_soc_s1, "S1: Standard Monodirezionale", f"Ore dell'Anno [{start_hour} - {end_hour}]", "SoC [%]")
             ax_ann_soc_s1.set_ylim(-5, 105)
             ax_ann_soc_s1.legend(fontsize=6, frameon=False, loc="lower left")
             st.pyplot(fig_ann_soc_s1)
             
-            # 2. Continuo S2 Smart zoomato
+            # S2 zoomato
             fig_ann_soc_s2, ax_ann_soc_s2 = plt.subplots(figsize=(7, 1.5), dpi=200)
-            ax_ann_soc_s2.plot(t_range, [(v / battery_capacity_kwh * 100) for v in soc_track_h_s2[s_idx:e_idx]], label="SoC BESS Casa", color="#B45309", lw=0.6)
-            ax_ann_soc_s2.plot(t_range, [(v / ev_capacity_kwh * 100) for v in soc_track_ev_s2[s_idx:e_idx]], label="SoC EV", color="#3B82F6", lw=0.5)
+            ax_ann_soc_s2.plot(t_range, [(v / battery_capacity_kwh * 100) for v in sd["soc_track_h_s2"][s_idx:e_idx]], label="SoC BESS Casa", color="#B45309", lw=0.6)
+            ax_ann_soc_s2.plot(t_range, [(v / ev_capacity_kwh * 100) for v in sd["soc_track_ev_s2"][s_idx:e_idx]], label="SoC EV", color="#3B82F6", lw=0.5)
             ax_ann_soc_s2.plot(t_range, conn_mask, label="EV Connesso (Fascia)", color="#E0F2FE", lw=2.5, alpha=0.5)
             setup_plot_style(ax_ann_soc_s2, "S2: Smart Charging", f"Ore dell'Anno [{start_hour} - {end_hour}]", "SoC [%]")
             ax_ann_soc_s2.set_ylim(-5, 105)
             ax_ann_soc_s2.legend(fontsize=6, frameon=False, loc="lower left")
             st.pyplot(fig_ann_soc_s2)
             
-            # 3. Continuo S3 V2H zoomato
+            # S3 zoomato
             fig_ann_soc_s3, ax_ann_soc_s3 = plt.subplots(figsize=(7, 1.5), dpi=200)
-            ax_ann_soc_s3.plot(t_range, [(v / battery_capacity_kwh * 100) for v in soc_track_h_s3[s_idx:e_idx]], label="SoC BESS Casa", color="#78350F", lw=0.6)
-            ax_ann_soc_s3.plot(t_range, [(v / ev_capacity_kwh * 100) for v in soc_track_ev_s3[s_idx:e_idx]], label="SoC EV", color="#10B981", lw=0.5)
+            ax_ann_soc_s3.plot(t_range, [(v / battery_capacity_kwh * 100) for v in sd["soc_track_h_s3"][s_idx:e_idx]], label="SoC BESS Casa", color="#78350F", lw=0.6)
+            ax_ann_soc_s3.plot(t_range, [(v / ev_capacity_kwh * 100) for v in sd["soc_track_ev_s3"][s_idx:e_idx]], label="SoC EV", color="#10B981", lw=0.5)
             ax_ann_soc_s3.plot(t_range, conn_mask, label="EV Connesso (Fascia)", color="#E0F2FE", lw=2.5, alpha=0.5)
             setup_plot_style(ax_ann_soc_s3, "S3: Bidirezionale V2H", f"Ore dell'Anno [{start_hour} - {end_hour}]", "SoC [%]")
             ax_ann_soc_s3.set_ylim(-5, 105)
@@ -902,7 +900,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
             st.pyplot(fig_ann_soc_s3)
         else:
             fig_ann_soc, ax_ann_soc = plt.subplots(figsize=(7, 2.5), dpi=200)
-            ax_ann_soc.plot(t_range, [(v / battery_capacity_kwh * 100) for v in soc_track_h_s1[s_idx:e_idx]], label="SoC BESS Casa", color="#D97706", lw=0.6)
+            ax_ann_soc.plot(t_range, [(v / battery_capacity_kwh * 100) for v in sd["soc_track_h_s1"][s_idx:e_idx]], label="SoC BESS Casa", color="#D97706", lw=0.6)
             setup_plot_style(ax_ann_soc, "Evoluzione dello Stato di Carica nel Periodo Selezionato", f"Ore dell'Anno [{start_hour} - {end_hour}]", "SoC [%]")
             ax_ann_soc.set_ylim(-5, 105)
             ax_ann_soc.legend(fontsize=6.5, frameon=False, loc="lower left")
@@ -913,11 +911,11 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
     st.subheader(T["final_chart_title"])
     fig12, ax12 = plt.subplots(figsize=(12, 2.4), dpi=200)
     x_idx = range(1, 13)
-    ax12.bar([x - 0.22 for x in x_idx], monthly_load_with_ev_s1_agg, width=0.18, label=T["final_l1"], color='#94A3B8', alpha=0.25)
-    ax12.bar([x - 0.07 for x in x_idx], monthly_ac_s1_agg, width=0.15, label=T["final_l2"] if has_ev else "Autoconsumo", color='#EF4444', alpha=0.7)
+    ax12.bar([x - 0.22 for x in x_idx], sd["monthly_load_with_ev_s1_agg"], width=0.18, label=T["final_l1"], color='#94A3B8', alpha=0.25)
+    ax12.bar([x - 0.07 for x in x_idx], sd["monthly_ac_s1_agg"], width=0.15, label=T["final_l2"] if has_ev else "Autoconsumo", color='#EF4444', alpha=0.7)
     if has_ev:
-        ax12.bar([x + 0.07 for x in x_idx], monthly_ac_s2_agg, width=0.15, label=T["final_l3"], color='#3B82F6', alpha=0.8)
-        ax12.bar([x + 0.22 for x in x_idx], monthly_ac_s3_agg, width=0.15, label=T["final_l4"], color='#10B981', alpha=0.9)
+        ax12.bar([x + 0.07 for x in x_idx], sd["monthly_ac_s2_agg"], width=0.15, label=T["final_l3"], color='#3B82F6', alpha=0.8)
+        ax12.bar([x + 0.22 for x in x_idx], sd["monthly_ac_s3_agg"], width=0.15, label=T["final_l4"], color='#10B981', alpha=0.9)
     setup_plot_style(ax12, T["final_chart_sub"], T["final_x"], T["chart_y_kwh"])
     ax12.set_xticks(x_idx)
     ax12.set_xticklabels(T["months_labels"])
