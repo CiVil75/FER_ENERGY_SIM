@@ -696,7 +696,7 @@ if st.session_state.sim_data is not None:
         with mc1:
             c1, c2 = st.columns(2); c1.metric("Autoconsumo Effettivo", f"{sd['ac_s1']:.0f} kWh"); c2.metric("Grado di Autoconsumo", f"{sc_rate_s1:.1f} %")
             c3, c4 = st.columns(2); c3.metric("Autosufficienza Nodo", f"{ss_rate_s1:.1f} %"); c4.metric("Prelievo Totale da Rete", f"{sd['grid_s1']:.0f} kWh")
-            c5, c6 = st.columns(2); c5.metric("Energia Immessa in Rete", f"{sd['sell_s1']:.0f} kWh"); c6.metric("Fabbisogno Annuo Lordo", f"{sd['total_demand_annual'] Flussord} kWh")
+            c5, c6 = st.columns(2); c5.metric("Energia Immessa in Rete", f"{sd['sell_s1']:.0f} kWh"); c6.metric("Fabbisogno Annuo Lordo", f"{sd['total_demand_annual']:.0f} kWh")
             st.divider()
             f1, f2 = st.columns(2); f1.metric("Risparmio Economico", f"{sd['savings_s1']:.2f} €/anno"); f2.metric("Tempo di Ritorno (PBP)", f"{sd['payback_s1']:.1f} Anni")
         with mc2: plot_strategy_pies(sd['ac_s1'], sd['grid_s1'], sd['sell_s1'])
@@ -801,7 +801,7 @@ if st.session_state.sim_data is not None:
                 ax_f3.plot(h_range, bess_s, label="Flusso BESS Locale", color="#D97706", lw=1.2)
                 ax_f3.plot(h_range, grid_s, label="Scambio Rete (Grid)", color="#475569", lw=1.2, linestyle="-.")
                 ax_f3.axhline(0, color="#CBD5E1", lw=0.8, linestyle="--")
-                setup_plot_style(ax_f3, "Flussi di Bilanciamento e Scambio", T["chart_h_x"], "Potenza [kW]")
+                setup_plot_style(fig_f3.gca(), "Flussi di Bilanciamento e Scambio", T["chart_h_x"], "Potenza [kW]")
                 ax_f3.legend(fontsize=5.5, loc="upper left", frameon=False)
                 st.pyplot(fig_f3)
 
