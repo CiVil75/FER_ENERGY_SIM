@@ -14,7 +14,7 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     
-    html, body, [data-testid="stAppViewContainer"], .main {
+    html, body, [data-testid=\"stAppViewContainer\"], .main {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
     }
     .reportview-container .main .block-container { padding-top: 0.5rem; padding-bottom: 1rem; }
@@ -22,7 +22,7 @@ st.markdown("""
     h2 { font-size: 1.25rem !important; font-weight: 600; color: #1E293B; margin-top: 1rem; margin-bottom: 0.5rem; border-bottom: 1px solid #E2E8F0; padding-bottom: 0.1rem; }
     h3 { font-size: 1.0rem !important; font-weight: 600; color: #334155; margin-bottom: 0.4rem; }
     h4 { font-size: 0.9rem !important; font-weight: 600; color: #475569; margin-top: 0.4rem; }
-    .stSlider > label, .stSelectbox > label, .stTextInput > label, .stCheckbox > label { font-size: 0.78rem !important; font-weight: 500; color: #475569; }
+    .stNumberInput > label, .stSelectbox > label, .stTextInput > label, .stCheckbox > label { font-size: 0.78rem !important; font-weight: 500; color: #475569; }
     .stMetric { background-color: #F8FAFC; padding: 0.4rem 0.6rem; border-radius: 0.375rem; border: 1px solid #E2E8F0; }
     div[data-testid="stExpander"] { border: 1px solid #E2E8F0 !important; box-shadow: none !important; margin-bottom: 0.4rem; }
     
@@ -58,7 +58,7 @@ LANG_DICT = {
         "subtitle": "Analisi quantitativa e modellazione geospaziale per micro-reti, accumuli stazionari ed ecosistemi V2H.",
         "params_title": "🎛️ Configurazione Parametri Tecnici ed Economici",
         "pv_title": "☀️ Fotovoltaico (Max 20 kWp)",
-        "pv_help": "💡 **PV**: 1 kWp occupa ~5-7 m². Tilt ottimale (inclinazione) in Italia: 30°-35°. Azimuth: 0° Sud, -90° Est, 90° Ovest.",
+        "pv_help": "💡 **PV**: 1 kWp occupa ~5-7 m². Inclinazione (Tilt) ottimale in Italia: 30°-35°. Azimuth: 0° Sud, -90° Est, 90° Ovest.",
         "pv_p": "Potenza Impianto (kWp)",
         "pv_t": "Tilt Angle (°)",
         "pv_az": "Azimuth Angle (°)",
@@ -73,7 +73,7 @@ LANG_DICT = {
         "batt_eff": "Efficienza Round-Trip (%)",
         "batt_dod": "DoD Massimo (%)",
         "load_title": "🏠 Profilo Utenza & Edificio",
-        "load_help": "💡 **Loads**: Calcola dinamicamente la firma termica invernale e il carico estivo di condizionamento (AC) incrociando la classe dell'edificio con le temperature storiche GIS locali.",
+        "load_help": "💡 **Loads**: Calcola la firma termica invernale e il raffrescamento incrociando la classe dell'edificio con le temperature storiche GIS.",
         "load_area": "Superficie Calpestabile (m²)",
         "load_class": "Classe Energetica",
         "load_occ": "Numero Occupanti",
@@ -112,7 +112,7 @@ LANG_DICT = {
         "chart_x_month": "Mese",
         "chart_y_kwh": "Energia [kWh]",
         "season_title": "📈 Dinamica Oraria Stagionale sui Giorni Medi Tipici",
-        "season_help": "🔬 **Interpretazione Grafici Orari**: Per ogni stagione viene ricostruito il giorno medio tipico solare. A sinistra viene analizzato il bilancio di potenza istantaneo (generazione e split dei carichi); a destra lo stato di carica (SoC) dei vettori energetici.",
+        "season_help": "🔬 **Interpretazione Grafici Orari**: Per ogni stagione viene ricostruito il giorno medio tipico solare. A sinistra viene analizzato il bilancio di potenza istantaneo; a destra lo stato di carica (SoC) dei vettori energetici.",
         "inv": "Inverno", "pri": "Primavera", "est": "Estate", "aut": "Autunno",
         "inv_t": "❄️ Giorno Tipico Invernale (Gennaio)", "pri_t": "🌱 Giorno Tipico Primavera (Aprile)", "est_t": "☀️ Giorno Tipico Estivo (Luglio)", "aut_t": "🍂 Giorno Tipico Autunnale (Ottobre)",
         "chart_hourly_title": "Bilancio di Potenza Orario",
@@ -207,7 +207,7 @@ LANG_DICT = {
         "final_chart_title": "📊 Comparative Analysis of Self-Consumption Strategies",
         "final_chart_sub": "Energy Coverage and Effective Monthly Self-Consumption across the 3 Strategies",
         "final_x": "Month of the Year", "final_l1": "Gross Load", "final_l2": "S1: Standard Monodirectional", "final_l3": "S2: Smart Charging", "final_l4": "S3: Bidirectional V2H/V2L",
-        "months_labels": ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+        "months_labels": ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dic'],
         "hp_share": "Heating Share",
         "ac_share": "Cooling Share (AC)"
     }
@@ -224,58 +224,58 @@ st.caption(T["subtitle"])
 if "lat" not in st.session_state: st.session_state.lat = 42.3498
 if "lon" not in st.session_state: st.session_state.lon = 13.3995
 
-# --- PANNELLO DI CONTROLLO COMPLESSIVO REINTRODOTTO E MIGLIORATO ---
+# --- PANNELLO DI CONTROLLO COMPLESSIVO CON SELETTORI NUMERICI (+/-) ---
 st.markdown(f"## {T['params_title']}")
 exp_pv, exp_wind, exp_batt, exp_load, exp_eco = st.columns(5)
 
 with exp_pv.expander(T["pv_title"], expanded=False):
     st.markdown(f"<div class='custom-note'>{T['pv_help']}</div>", unsafe_allow_html=True)
-    pv_power = st.slider(T["pv_p"], 1, 20, 5)
-    pv_tilt = st.slider(T["pv_t"], 0, 90, 35)
-    pv_azimuth = st.slider(T["pv_az"], -180, 180, 0)
-    pv_efficiency = st.slider(T["pv_eff"], 10, 30, 20)
+    pv_power = st.number_input(T["pv_p"], min_value=1, max_value=20, value=5, step=1)
+    pv_tilt = st.number_input(T["pv_t"], min_value=0, max_value=90, value=35, step=5)
+    pv_azimuth = st.number_input(T["pv_az"], min_value=-180, max_value=180, value=0, step=5)
+    pv_efficiency = st.number_input(T["pv_eff"], min_value=10, max_value=30, value=20, step=1)
 
 with exp_wind.expander(T["wind_title"], expanded=False):
     st.markdown(f"<div class='custom-note'>{T['wind_help']}</div>", unsafe_allow_html=True)
-    wind_power_kw = st.slider(T["wind_p"], 1, 20, 2)
-    hub_height = st.slider(T["wind_h"], 10, 200, 80)
+    wind_power_kw = st.number_input(T["wind_p"], min_value=1, max_value=20, value=2, step=1)
+    hub_height = st.number_input(T["wind_h"], min_value=10, max_value=200, value=80, step=5)
 
 with exp_batt.expander(T["batt_title"], expanded=False):
     st.markdown(f"<div class='custom-note'>{T['batt_help']}</div>", unsafe_allow_html=True)
-    battery_capacity_kwh = st.slider(T["batt_c"], 0, 100, 15)
-    battery_eff = st.slider(T["batt_eff"], 70, 100, 92) / 100.0
-    dod_limit = st.slider(T["batt_dod"], 50, 100, 80)
+    battery_capacity_kwh = st.number_input(T["batt_c"], min_value=0, max_value=100, value=15, step=1)
+    battery_eff = st.number_input(T["batt_eff"], min_value=70, max_value=100, value=92, step=1) / 100.0
+    dod_limit = st.number_input(T["batt_dod"], min_value=50, max_value=100, value=80, step=5)
     soc_min = battery_capacity_kwh * (1 - (dod_limit / 100.0))
     soc_max = battery_capacity_kwh
 
 with exp_load.expander(T["load_title"], expanded=False):
     st.markdown(f"<div class='custom-note'>{T['load_help']}</div>", unsafe_allow_html=True)
-    house_area = st.slider(T["load_area"], 40, 300, 120)
+    house_area = st.number_input(T["load_area"], min_value=40, max_value=300, value=120, step=10)
     building_class = st.selectbox(T["load_class"], ["A4", "A3", "A2", "A1", "B", "C", "D"])
-    occupants = st.slider(T["load_occ"], 1, 8, 3)
-    heat_pump_cop = st.slider(T["load_cop"], 2.0, 5.0, 3.5)
+    occupants = st.number_input(T["load_occ"], min_value=1, max_value=8, value=3, step=1)
+    heat_pump_cop = st.number_input(T["load_cop"], min_value=2.0, max_value=5.0, value=3.5, step=0.1, format="%.1f")
     has_ev = st.checkbox(T["load_ev_check"], value=True)
 
 with exp_eco.expander(T["eco_title"], expanded=False):
     st.markdown(f"<div class='custom-note'>{T['eco_help']}</div>", unsafe_allow_html=True)
-    cost_electricity = st.number_input(T["eco_cost"], value=0.28, step=0.01, format="%.2f")
-    val_injection = st.number_input(T["eco_sell"], value=0.08, step=0.01, format="%.2f")
-    capex_base = st.number_input(T["eco_capex"], value=9500, step=500)
+    cost_electricity = st.number_input(T["eco_cost"], min_value=0.01, max_value=2.00, value=0.28, step=0.01, format="%.2f")
+    val_injection = st.number_input(T["eco_sell"], min_value=0.00, max_value=2.00, value=0.08, step=0.01, format="%.2f")
+    capex_base = st.number_input(T["eco_capex"], min_value=1000, max_value=100000, value=9500, step=500)
 
-# Sezione EV Avanzata: Integrazione ed Inizializzazione Parametri di Ricarica
+# Sezione EV Avanzata con Selettori Numerici (+/-)
 ev_hours_status = [False] * 24
 if has_ev:
     st.markdown(f"### {T['ev_section_title']}")
     st.markdown(f"<div class='custom-note'>{T['ev_help']}</div>", unsafe_allow_html=True)
         
     c_p1, c_p2, c_p3, c_p4, c_p5, c_p6, c_p7 = st.columns(7)
-    ev_capacity_kwh = c_p1.slider(T["ev_cap"], 20, 150, 60)
-    ev_km_day = c_p2.slider(T["ev_km"], 10, 150, 45)
-    ev_efficiency_wh_km = c_p3.slider(T["ev_whkm"], 120, 250, 160)
-    v2h_power_kw = c_p4.slider(T["ev_v2hp"], 2.3, 22.0, 7.4)
-    v2h_eff = c_p5.slider(T["ev_v2heff"], 70, 100, 92) / 100.0
-    ev_soc_init_pct = c_p6.slider(T["ev_soc_init"], 10, 100, 50)
-    ev_soc_min_pct = c_p7.slider(T["ev_soc_min"], 10, 50, 25)
+    ev_capacity_kwh = c_p1.number_input(T["ev_cap"], min_value=20, max_value=150, value=60, step=5)
+    ev_km_day = c_p2.number_input(T["ev_km"], min_value=10, max_value=150, value=45, step=5)
+    ev_efficiency_wh_km = c_p3.number_input(T["ev_whkm"], min_value=120, max_value=250, value=160, step=5)
+    v2h_power_kw = c_p4.number_input(T["ev_v2hp"], min_value=2.3, max_value=22.0, value=7.4, step=0.1, format="%.1f")
+    v2h_eff = c_p5.number_input(T["ev_v2heff"], min_value=70, max_value=100, value=92, step=1) / 100.0
+    ev_soc_init_pct = c_p6.number_input(T["ev_soc_init"], min_value=10, max_value=100, value=50, step=5)
+    ev_soc_min_pct = c_p7.number_input(T["ev_soc_min"], min_value=10, max_value=50, value=25, step=5)
     
     c_cx1, c_cx2, c_cx3 = st.columns(3)
     capex_ev_s1 = c_cx1.number_input(T["ev_capex_s1"], value=600, step=50)
@@ -548,7 +548,6 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
                 
                 if month in seasons_mapping.values() and day == days - 1:
                     s_name = [k for k, v in seasons_mapping.items() if v == month][0]
-                    # Ricostruzione analitica per andamenti coerenti grafici
                     soc_tracking_ev[s_name]["s1"].append(max(20.0, 85.0 - (h*1.5) if h < 19 else 20.0 + (h-18)*12))
                     soc_tracking_ev[s_name]["s2"].append(max(30.0, 45.0 + (h*1.8) if h in range(7,16) else 45.0))
                 
