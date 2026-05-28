@@ -27,11 +27,12 @@ st.markdown("""
     .custom-note-result { padding: 0.6rem 0.75rem; border-radius: 0.25rem; font-size: 0.82rem; background-color: #F0FDF4; color: #166534; border-left: 3px solid #22C55E; margin-bottom: 0.8rem; }
     div[data-testid="column"] { padding: 0px 1px !important; }
     
-    .compare-card { background: #FFFFFF; border: 1px solid #E2E8F0; padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 0.5rem;}
+    .compare-card { background: #FFFFFF; border: 1px solid #E2E8F0; padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 0.5rem; width: 100%; display: block; }
+    .compare-item { margin-bottom: 0.6rem; }
     .compare-label { font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 0.4rem; }
-    .compare-bar-container { background: #E2E8F0; border-radius: 0.25rem; height: 10px; width: 100%; position: relative; margin-bottom: 0.3rem;}
+    .compare-bar-container { background: #E2E8F0; border-radius: 0.25rem; height: 10px; width: 100%; position: relative; margin-top: 0.1rem; margin-bottom: 0.1rem; }
     .compare-bar-fill { height: 100%; border-radius: 0.25rem; }
-    .compare-val { font-size: 0.85rem; font-weight: 700; color: #0F172A; text-align: right; }
+    .compare-val { font-size: 0.85rem; font-weight: 700; color: #0F172A; text-align: right; margin-top: 0.1rem; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -44,9 +45,8 @@ LANG_DICT = {
         "guide_metrics_title": "📊 Guida all'Interpretazione dei KPI e Indicatori Finanziari",
         "guide_metrics_text": "Fornisce indicazioni chiare su Autoconsumo, Autosufficienza e tempo di ammortamento semplice (Payback Period).",
         "guide_macro_charts_title": "📉 Guida ai Grafici di Sintesi Mensile (Macro Bilanci)",
-        "guide_macro_charts_text": "Grafici aggregati di generazione e fabbisogno su base mensile.",
-        "guide_hourly_charts_title": "⏱️ Guida all'Analisi dei Giorni Reali Calendatoriali Selezionati",
-        "guide_hourly_charts_text": "Analisi oraria intra-giornaliera per quattro giorni reali rappresentativi delle stagioni climatiche. Sfondo azzurro per la connessione EV.",
+        "guide_macro_charts_text": "Grafici aggregati di generazione e fabbisogno su base mensile con scorporo dei sottocarichi termici.",
+        "guide_hourly_charts_title": "⏱ ...",
         "guide_8760_charts_title": "📈 Guida all'Analisi delle Curve Continue Annuali (8760 ore Interattive)",
         "guide_8760_charts_text": "Visualizzazione continua oraria sull'intero anno con possibilità di zoom interattivo tramite lo slider.",
         "params_title": "🎛️ Configurazione Parametri Tecnici ed Economici",
@@ -76,7 +76,7 @@ LANG_DICT = {
         "results_title": "📊 Analisi Output e Indicatori di Performance Annuali",
         "results_help": "🔬 Risultati consolidati sull'orizzonte temporale continuo di 8760 ore annuali.",
         "kpi_ac": "Autoconsumo", "kpi_bill_savings": "Risparmio Economico", "kpi_payback": "Tempo di Ritorno",
-        "chart_gen_title": "Profili di Generazione Mensile Integrata", "chart_load_title": "Profili di Fabbisogno Mensile Integrato (Riscaldamento vs Condizionamento)",
+        "chart_gen_title": "Profili di Generazione Mensile Integrata", "chart_load_title": "Profili di Fabbisogno Mensile Integrato (Dettaglio Sottocarichi Domestici)",
         "chart_x_month": "Mese", "chart_y_kwh": "Energia [kWh]",
         "season_title": "📈 Dinamica Oraria Dettagliata sui Giorni Tipici Reali Selezionati",
         "inv": "Inverno (15 Gennaio - Lunedì)", "pri": "Primavera (15 Aprile - Lunedì)", "est": "Estate (15 Luglio - Lunedì)", "aut": "Autunno (15 Ottobre - Martedì)",
@@ -91,7 +91,6 @@ LANG_DICT = {
 lang = "ITA"
 T = LANG_DICT[lang]
 
-# Inizializzazione stabile dei session state geografici e di memoria dati
 if "lat" not in st.session_state: st.session_state.lat = 42.3498
 if "lon" not in st.session_state: st.session_state.lon = 13.3995
 if "sim_data" not in st.session_state: st.session_state.sim_data = None
@@ -196,15 +195,6 @@ with col_loc2:
     folium.Marker([st.session_state.lat, st.session_state.lon]).add_to(m)
     map_data = st_folium(m, width="100%", height=150, key=f"map_widget_{st.session_state.lat}_{st.session_state.lon}")
 
-def setup_plot_style(ax, title, xlabel, ylabel):
-    ax.set_title(title, fontsize=9, fontweight='600', color='#0F172A', loc='left', pad=8)
-    ax.set_xlabel(xlabel, fontsize=7.5, color='#475569', labelpad=4)
-    ax.set_ylabel(ylabel, fontsize=7.5, color='#475569', labelpad=4)
-    ax.tick_params(axis='both', which='major', labelsize=7, labelcolor='#475569')
-    ax.grid(True, linestyle='--', alpha=0.4, color='#CBD5E1', lw=0.6)
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-
 def get_8760_profiles():
     pvgis_url = f"https://re.jrc.ec.europa.eu/api/v5_2/PVcalc?lat={lat}&lon={lon}&peakpower={pv_power}&angle={pv_tilt}&aspect={pv_azimuth}&loss=14&outputformat=json"
     sol_m = [0]*12
@@ -263,7 +253,7 @@ def get_8760_profiles():
         "temp": temp_2m, "wind": wind_10m
     }
 
-# --- APPLICAZIONE DEI FLUSSI DINAMICI ---
+# --- CALCOLO ENERGETICO CONTINUO ---
 if st.button(T["run_btn"], type="primary", use_container_width=True):
     sim = get_8760_profiles()
     hours_indices = {
@@ -283,7 +273,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
             idx += 1
         return count
 
-    # --- STRATEGIA S1: Monodirezionale Standard ---
+    # --- S1: Monodirezionale Standard ---
     soc_h_s1 = soc_min
     current_ev_soc_s1 = ev_capacity_kwh if has_ev else 0
     ac_s1, grid_s1, sell_s1 = 0, 0, 0
@@ -293,7 +283,6 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
 
     for i in range(8760):
         is_connected = conn_annual[i]
-        
         if has_ev and not is_connected and (i == 0 or conn_annual[i-1]):
             current_ev_soc_s1 = max(0.0, current_ev_soc_s1 - daily_ev_demand_kwh)
 
@@ -329,7 +318,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         ac_s1_hourly[i] = local_ac
         ac_s1 += local_ac
 
-    # --- STRATEGIA S2: Smart Charging Predittivo ---
+    # --- S2: Smart Charging ---
     soc_h_s2 = soc_min
     current_ev_soc_s2 = ev_capacity_kwh if has_ev else 0
     ac_s2, grid_s2, sell_s2 = 0, 0, 0
@@ -382,7 +371,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         ac_s2_hourly[i] = local_ac
         ac_s2 += local_ac
 
-    # --- STRATEGIA S3: Vehicle-to-Home Cooperativo ---
+    # --- S3: Bidirectional V2H ---
     soc_h_s3 = soc_min
     current_ev_soc_s3 = ev_capacity_kwh if has_ev else 0
     ac_s3, grid_s3, sell_s3 = 0, 0, 0
@@ -440,14 +429,10 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         ac_s3_hourly[i] = local_ac
         ac_s3 += local_ac
 
-    annual_ev_kwh = (daily_ev_demand_kwh * 365) if has_ev else 0.0
-    total_demand_annual = sum(sim["load"]) + annual_ev_kwh
-    total_generation_annual = sum(sim["fer"])
-
     monthly_load_with_ev_s1_agg = [0]*12
     monthly_ac_s1_agg, monthly_ac_s2_agg, monthly_ac_s3_agg = [0]*12, [0]*12, [0]*12
     monthly_sol_agg, monthly_wind_agg = [0]*12, [0]*12
-    days_in_months = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    monthly_base_agg, monthly_heat_agg, monthly_cool_agg = [0]*12, [0]*12, [0]*12
     
     c_idx = 0
     for m in range(12):
@@ -455,6 +440,10 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         monthly_load_with_ev_s1_agg[m] = sum(total_load_with_ev_s1[c_idx : c_idx + h_count])
         monthly_sol_agg[m] = sum(sim["pv"][c_idx : c_idx + h_count])
         monthly_wind_agg[m] = sum(sim["wt"][c_idx : c_idx + h_count])
+        monthly_base_agg[m] = sum(sim["base"][c_idx : c_idx + h_count])
+        monthly_heat_agg[m] = sum(sim["heating"][c_idx : c_idx + h_count])
+        monthly_cool_agg[m] = sum(sim["cooling"][c_idx : c_idx + h_count])
+        
         monthly_ac_s1_agg[m] = sum(ac_s1_hourly[c_idx : c_idx + h_count])
         if has_ev:
             monthly_ac_s2_agg[m] = sum(ac_s2_hourly[c_idx : c_idx + h_count])
@@ -484,16 +473,14 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         "monthly_load_with_ev_s1_agg": monthly_load_with_ev_s1_agg, "monthly_ac_s1_agg": monthly_ac_s1_agg,
         "monthly_ac_s2_agg": monthly_ac_s2_agg, "monthly_ac_s3_agg": monthly_ac_s3_agg,
         "monthly_sol_agg": monthly_sol_agg, "monthly_wind_agg": monthly_wind_agg,
+        "monthly_base_agg": monthly_base_agg, "monthly_heat_agg": monthly_heat_agg, "monthly_cool_agg": monthly_cool_agg,
         "soc_track_h_s1": soc_track_h_s1, "soc_track_ev_s1": soc_track_ev_s1,
         "soc_track_h_s2": soc_track_h_s2, "soc_track_ev_s2": soc_track_ev_s2,
         "soc_track_h_s3": soc_track_h_s3, "soc_track_ev_s3": soc_track_ev_s3,
         "total_load_with_ev_s1": total_load_with_ev_s1
     }
 
-# --- INTERFACCIA OUTPUT UTENTE PERSISTENTE ---
-# Assicurazione che T sia definita a livello di esecuzione interfaccia
-T = LANG_DICT[lang]
-
+# --- INTERFACCIA OUTPUT UTENTE ORDINATA ---
 if st.session_state.sim_data is not None:
     sd = st.session_state.sim_data
     sim = sd["sim"]
@@ -501,164 +488,152 @@ if st.session_state.sim_data is not None:
     has_ev = sd["has_ev"]
     ev_hours_status = sd["ev_hours_status"]
     
-    st.markdown(f"## {T['results_title']}")
-    st.markdown(f"<div class='custom-note-result'>{T['results_help']}</div>", unsafe_allow_html=True)
-    
     sc_rate_s1 = (sd["ac_s1"] / sd["total_generation_annual"]) * 100 if sd["total_generation_annual"] > 0 else 0
     ss_rate_s1 = (sd["ac_s1"] / sd["total_demand_annual"]) * 100 if sd["total_demand_annual"] > 0 else 0
-    
     if has_ev:
         sc_rate_s2 = (sd["ac_s2"] / sd["total_generation_annual"]) * 100 if sd["total_generation_annual"] > 0 else 0
         ss_rate_s2 = (sd["ac_s2"] / sd["total_demand_annual"]) * 100 if sd["total_demand_annual"] > 0 else 0
         sc_rate_s3 = (sd["ac_s3"] / sd["total_generation_annual"]) * 100 if sd["total_generation_annual"] > 0 else 0
         ss_rate_s3 = (sd["ac_s3"] / sd["total_demand_annual"]) * 100 if sd["total_demand_annual"] > 0 else 0
+
+    st.markdown(f"## {T['results_title']}")
+    st.markdown(f"<div class='custom-note-result'>{T['results_help']}</div>", unsafe_allow_html=True)
+
+    # --- 1ª SEZIONE: ISTOGRAMMA COMPARATIVO ANNUALE (SPOSTATO IN TESTA) ---
+    st.markdown(f"### {T['final_chart_title']}")
+    fig12, ax12 = plt.subplots(figsize=(12, 2.4), dpi=200)
+    x_idx = range(1, 13)
+    ax12.bar([x - 0.22 for x in x_idx], sd["monthly_load_with_ev_s1_agg"], width=0.18, label=T["final_l1"], color='#94A3B8', alpha=0.25)
+    ax12.bar([x - 0.07 for x in x_idx], sd["monthly_ac_s1_agg"], width=0.15, label=T["final_l2"] if has_ev else "Autoconsumo", color='#EF4444', alpha=0.7)
+    if has_ev:
+        ax12.bar([x + 0.07 for x in x_idx], sd["monthly_ac_s2_agg"], width=0.15, label=T["final_l3"], color='#3B82F6', alpha=0.8)
+        ax12.bar([x + 0.22 for x in x_idx], sd["monthly_ac_s3_agg"], width=0.15, label=T["final_l4"], color='#10B981', alpha=0.9)
+    setup_plot_style(ax12, T["final_chart_sub"], T["final_x"], T["chart_y_kwh"])
+    ax12.set_xticks(x_idx)
+    ax12.set_xticklabels(T["months_labels"])
+    ax12.legend(fontsize=7, frameon=False, loc="upper right")
+    st.pyplot(fig12)
+
+    # --- 2ª SEZIONE: PROSPETTO COMPARATIVO BARRE CSS (CORRETTO IL BUG DEL CONTAINER) ---
+    st.markdown("### 📊 Prospetto Comparativo delle Performance Inter-Strategia")
+    if has_ev:
+        col_bar1, col_bar2, col_bar3, col_bar4 = st.columns(4)
+        
+        with col_bar1:
+            st.markdown(f"""
+            <div class='compare-card'>
+                <div class='compare-label'>Grado di Autosufficienza [%]</div>
+                <div class='compare-item'><small>S1 Standard</small><div class='compare-bar-container'><div class='compare-bar-fill' style='width: {ss_rate_s1}%; background: #EF4444;'></div></div><div class='compare-val'>{ss_rate_s1:.1f} %</div></div>
+                <div class='compare-item'><small>S2 Smart</small><div class='compare-bar-container'><div class='compare-bar-fill' style='width: {ss_rate_s2}%; background: #3B82F6;'></div></div><div class='compare-val'>{ss_rate_s2:.1f} %</div></div>
+                <div class='compare-item'><small>S3 V2H</small><div class='compare-bar-container'><div class='compare-bar-fill' style='width: {ss_rate_s3}%; background: #10B981;'></div></div><div class='compare-val'>{ss_rate_s3:.1f} %</div></div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col_bar2:
+            max_savings = max(sd["savings_s1"], sd["savings_s2"], sd["savings_s3"]) if max(sd["savings_s1"], sd["savings_s2"], sd["savings_s3"]) > 0 else 1
+            st.markdown(f"""
+            <div class='compare-card'>
+                <div class='compare-label'>Risparmio Economico Annuale [€/anno]</div>
+                <div class='compare-item'><small>S1 Standard</small><div class='compare-bar-container'><div class='compare-bar-fill' style='width: {(sd["savings_s1"]/max_savings)*100}%; background: #EF4444;'></div></div><div class='compare-val'>{sd["savings_s1"]:.2f} €</div></div>
+                <div class='compare-item'><small>S2 Smart</small><div class='compare-bar-container'><div class='compare-bar-fill' style='width: {(sd["savings_s2"]/max_savings)*100}%; background: #3B82F6;'></div></div><div class='compare-val'>{sd["savings_s2"]:.2f} €</div></div>
+                <div class='compare-item'><small>S3 V2H</small><div class='compare-bar-container'><div class='compare-bar-fill' style='width: {(sd["savings_s3"]/max_savings)*100}%; background: #10B981;'></div></div><div class='compare-val'>{sd["savings_s3"]:.2f} €</div></div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col_bar3:
+            max_capex = max(sd["capex_s1_tot"], sd["capex_s2_tot"], sd["capex_s3_tot"]) if max(sd["capex_s1_tot"], sd["capex_s2_tot"], sd["capex_s3_tot"]) > 0 else 1
+            st.markdown(f"""
+            <div class='compare-card'>
+                <div class='compare-label'>Investimento Iniziale (CAPEX) [€]</div>
+                <div class='compare-item'><small>S1 Standard</small><div class='compare-bar-container'><div class='compare-bar-fill' style='width: {(sd["capex_s1_tot"]/max_capex)*100}%; background: #EF4444;'></div></div><div class='compare-val'>{sd["capex_s1_tot"]:.0f} €</div></div>
+                <div class='compare-item'><small>S2 Smart</small><div class='compare-bar-container'><div class='compare-bar-fill' style='width: {(sd["capex_s2_tot"]/max_capex)*100}%; background: #3B82F6;'></div></div><div class='compare-val'>{sd["capex_s2_tot"]:.0f} €</div></div>
+                <div class='compare-item'><small>S3 V2H</small><div class='compare-bar-container'><div class='compare-bar-fill' style='width: {(sd["capex_s3_tot"]/max_capex)*100}%; background: #10B981;'></div></div><div class='compare-val'>{sd["capex_s3_tot"]:.0f} €</div></div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col_bar4:
+            st.markdown(f"""
+            <div class='compare-card'>
+                <div class='compare-label'>Tempo di Ritorno Ammortamento [Anni]</div>
+                <div class='compare-item'><small>S1 Standard</small><div class='compare-bar-container'><div class='compare-bar-fill' style='width: {min(100, (sd["payback_s1"]/15)*100)}%; background: #EF4444;'></div></div><div class='compare-val'>{sd["payback_s1"]:.1f} anni</div></div>
+                <div class='compare-item'><small>S2 Smart</small><div class='compare-bar-container'><div class='compare-bar-fill' style='width: {min(100, (sd["payback_s2"]/15)*100)}%; background: #3B82F6;'></div></div><div class='compare-val'>{sd["payback_s2"]:.1f} anni</div></div>
+                <div class='compare-item'><small>S3 V2H</small><div class='compare-bar-container'><div class='compare-bar-fill' style='width: {min(100, (sd["payback_s3"]/15)*100)}%; background: #10B981;'></div></div><div class='compare-val'>{sd["payback_s3"]:.1f} anni</div></div>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.info("Abilita il veicolo elettrico (EV) nei parametri per sbloccare l'analisi comparativa inter-strategia.")
+
+    # --- 3ª SEZIONE: MACRO BILANCI MENSILI DETTAGLIATI (CURATI MEGLIO) ---
+    st.markdown("### 📊 Macro Bilanci Energetici su Base Mensile")
+    col_m1, col_m2 = st.columns(2)
+    with col_m1:
+        fig_mac_gen, ax_mac_gen = plt.subplots(figsize=(6, 2.3), dpi=200)
+        ax_mac_gen.plot(range(1, 13), sd["monthly_sol_agg"], label="Fotovoltaico (Modellato)", color="#D97706", lw=1.4, marker='o', markersize=2)
+        ax_mac_gen.bar(range(1, 13), sd["monthly_wind_agg"], label="Eolico (Open-Meteo)", color="#2563EB", alpha=0.2, width=0.4)
+        setup_plot_style(ax_mac_gen, T["chart_gen_title"], T["chart_x_month"], T["chart_y_kwh"])
+        ax_mac_gen.legend(fontsize=6.5, frameon=False, loc="upper right")
+        st.pyplot(fig_mac_gen)
+    with col_m2:
+        fig_mac_load, ax_mac_load = plt.subplots(figsize=(6, 2.3), dpi=200)
+        # Disegno stratificato e dettagliato dei sottocarichi
+        ax_mac_load.bar(range(1, 13), sd["monthly_base_agg"], label="Carichi Base (Stocastici)", color="#475569", alpha=0.3, width=0.5)
+        ax_mac_load.bar(range(1, 13), sd["monthly_heat_agg"], bottom=sd["monthly_base_agg"], label="Riscaldamento (Pompa di Calore)", color="#DC2626", alpha=0.6, width=0.5)
+        ax_mac_load.bar(range(1, 13), sd["monthly_cool_agg"], bottom=[sd["monthly_base_agg"][k]+sd["monthly_heat_agg"][k] for k in range(12)], label="Condizionamento AC", color="#3B82F6", alpha=0.6, width=0.5)
+        ax_mac_load.plot(range(1, 13), sd["monthly_load_with_ev_s1_agg"], color="#0F172A", lw=1.2, linestyle="-.", label="Fabbisogno Lordo + EV S1")
+        setup_plot_style(ax_mac_load, T["chart_load_title"], T["chart_x_month"], T["chart_y_kwh"])
+        ax_mac_load.legend(fontsize=6, frameon=False, loc="upper right")
+        st.pyplot(fig_mac_load)
+
+    # --- 4ª SEZIONE: SCHEDE DETTAGLIO STRATEGIE ---
+    st.markdown("### 📋 Dettaglio Analitico delle Singole Strategie")
+    if has_ev:
         tab1, tab2, tab3 = st.tabs(["🛑 Scenario 1: Standard Monodirezionale", "☀️ Scenario 2: Smart Charging", "🔄 Scenario 3: Bidirectional V2H"])
     else:
         tab1, = st.tabs(["🏠 Configurazione Impianto Base (Senza EV)"])
 
     def plot_strategy_pies(ac, grid, sell):
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(5, 2.3), dpi=150)
-        ax1.pie([ac, grid], labels=['Autoconsumo', 'Rete'], colors=['#10B981', '#EF4444'], autopct='%1.1f%%', startangle=90, textprops={'fontsize':6.5})
-        ax1.set_title("Copertura Fabbisogno", fontsize=7.5, fontweight='600')
-        ax2.pie([ac, sell], labels=['Autoconsumo', 'Immissione'], colors=['#10B981', '#3B82F6'], autopct='%1.1f%%', startangle=90, textprops={'fontsize':6.5})
-        ax2.set_title("Destinazione FER", fontsize=7.5, fontweight='600')
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(5, 2.1), dpi=150)
+        ax1.pie([ac, grid], labels=['Autoconsumo', 'Rete'], colors=['#10B981', '#EF4444'], autopct='%1.1f%%', startangle=90, textprops={'fontsize':6})
+        ax1.set_title("Copertura Fabbisogno", fontsize=7, fontweight='600')
+        ax2.pie([ac, sell], labels=['Autoconsumo', 'Immissione'], colors=['#10B981', '#3B82F6'], autopct='%1.1f%%', startangle=90, textprops={'fontsize':6})
+        ax2.set_title("Destinazione FER", fontsize=7, fontweight='600')
         st.pyplot(fig)
 
     with tab1:
-        st.markdown("#### Bilancio Integrato Completo - Scenario S1")
         mc1, mc2 = st.columns([3, 2])
         with mc1:
-            c1, c2 = st.columns(2)
-            c1.metric("Autoconsumo Effettivo", f"{sd['ac_s1']:.0f} kWh")
-            c2.metric("Grado di Autoconsumo", f"{sc_rate_s1:.1f} %")
-            c3, c4 = st.columns(2)
-            c3.metric("Autosufficienza Nodo", f"{ss_rate_s1:.1f} %")
-            c4.metric("Prelievo Totale da Rete", f"{sd['grid_s1']:.0f} kWh")
-            c5, c6 = st.columns(2)
-            c5.metric("Energia Immessa in Rete", f"{sd['sell_s1']:.0f} kWh")
-            c6.metric("Fabbisogno Annuo Lordo", f"{sd['total_demand_annual']:.0f} kWh")
+            c1, c2 = st.columns(2); c1.metric("Autoconsumo Effettivo", f"{sd['ac_s1']:.0f} kWh"); c2.metric("Grado di Autoconsumo", f"{sc_rate_s1:.1f} %")
+            c3, c4 = st.columns(2); c3.metric("Autosufficienza Nodo", f"{ss_rate_s1:.1f} %"); c4.metric("Prelievo Totale da Rete", f"{sd['grid_s1']:.0f} kWh")
+            c5, c6 = st.columns(2); c5.metric("Energia Immessa in Rete", f"{sd['sell_s1']:.0f} kWh"); c6.metric("Fabbisogno Annuo Lordo", f"{sd['total_demand_annual']:.0f} kWh")
             st.divider()
-            f1, f2 = st.columns(2)
-            f1.metric("Risparmio Economico", f"{sd['savings_s1']:.2f} €/anno")
-            f2.metric("Tempo di Ritorno (PBP)", f"{sd['payback_s1']:.1f} Anni")
-        with mc2:
-            plot_strategy_pies(sd['ac_s1'], sd['grid_s1'], sd['sell_s1'])
+            f1, f2 = st.columns(2); f1.metric("Risparmio Economico", f"{sd['savings_s1']:.2f} €/anno"); f2.metric("Tempo di Ritorno (PBP)", f"{sd['payback_s1']:.1f} Anni")
+        with mc2: plot_strategy_pies(sd['ac_s1'], sd['grid_s1'], sd['sell_s1'])
     
     if has_ev:
         with tab2:
-            st.markdown("#### Bilancio Integrato Completo - Scenario S2")
             mc1, mc2 = st.columns([3, 2])
             with mc1:
-                c1, c2 = st.columns(2)
-                c1.metric("Autoconsumo Effettivo", f"{sd['ac_s2']:.0f} kWh")
-                c2.metric("Grado di Autoconsumo", f"{sc_rate_s2:.1f} %")
-                c3, c4 = st.columns(2)
-                c3.metric("Autosufficienza Nodo", f"{ss_rate_s2:.1f} %")
-                c4.metric("Prelievo Totale da Rete", f"{sd['grid_s2']:.0f} kWh")
-                c5, c6 = st.columns(2)
-                c5.metric("Energia Immessa in Rete", f"{sd['sell_s2']:.0f} kWh")
-                c6.metric("Fabbisogno Annuo Lordo", f"{sd['total_demand_annual']:.0f} kWh")
+                c1, c2 = st.columns(2); c1.metric("Autoconsumo Effettivo", f"{sd['ac_s2']:.0f} kWh"); c2.metric("Grado di Autoconsumo", f"{sc_rate_s2:.1f} %")
+                c3, c4 = st.columns(2); c3.metric("Autosufficienza Nodo", f"{ss_rate_s2:.1f} %"); c4.metric("Prelievo Totale da Rete", f"{sd['grid_s2']:.0f} kWh")
+                c5, c6 = st.columns(2); c5.metric("Energia Immessa in Rete", f"{sd['sell_s2']:.0f} kWh"); c6.metric("Fabbisogno Annuo Lordo", f"{sd['total_demand_annual']:.0f} kWh")
                 st.divider()
-                f1, f2 = st.columns(2)
-                f1.metric("Risparmio Economico", f"{sd['savings_s2']:.2f} €/anno")
-                f2.metric("Tempo di Ritorno (PBP)", f"{sd['payback_s2']:.1f} Anni")
-            with mc2:
-                plot_strategy_pies(sd['ac_s2'], sd['grid_s2'], sd['sell_s2'])
+                f1, f2 = st.columns(2); f1.metric("Risparmio Economico", f"{sd['savings_s2']:.2f} €/anno"); f2.metric("Tempo di Ritorno (PBP)", f"{sd['payback_s2']:.1f} Anni")
+            with mc2: plot_strategy_pies(sd['ac_s2'], sd['grid_s2'], sd['sell_s2'])
                 
         with tab3:
-            st.markdown("#### Bilancio Integrato Completo - Scenario S3")
             mc1, mc2 = st.columns([3, 2])
             with mc1:
-                c1, c2 = st.columns(2)
-                c1.metric("Autoconsumo Effettivo", f"{sd['ac_s3']:.0f} kWh")
-                c2.metric("Grado di Autoconsumo", f"{sc_rate_s3:.1f} %")
-                c3, c4 = st.columns(2)
-                c3.metric("Autosufficienza Nodo", f"{ss_rate_s3:.1f} %")
-                c4.metric("Prelievo Totale da Rete", f"{sd['grid_s3']:.0f} kWh")
-                c5, c6 = st.columns(2)
-                c5.metric("Energia Immessa in Rete", f"{sd['sell_s3']:.0f} kWh")
-                c6.metric("Fabbisogno Annuo Lordo", f"{sd['total_demand_annual']:.0f} kWh")
+                c1, c2 = st.columns(2); c1.metric("Autoconsumo Effettivo", f"{sd['ac_s3']:.0f} kWh"); c2.metric("Grado di Autoconsumo", f"{sc_rate_s3:.1f} %")
+                c3, c4 = st.columns(2); c3.metric("Autosufficienza Nodo", f"{ss_rate_s3:.1f} %"); c4.metric("Prelievo Totale da Rete", f"{sd['grid_s3']:.0f} kWh")
+                c5, c6 = st.columns(2); c5.metric("Energia Immessa in Rete", f"{sd['sell_s3']:.0f} kWh"); c6.metric("Fabbisogno Annuo Lordo", f"{sd['total_demand_annual']:.0f} kWh")
                 st.divider()
-                f1, f2 = st.columns(2)
-                f1.metric("Risparmio Economico", f"{sd['savings_s3']:.2f} €/anno")
-                f2.metric("Tempo di Ritorno (PBP)", f"{sd['payback_s3']:.1f} Anni")
-            with mc2:
-                plot_strategy_pies(sd['ac_s3'], sd['grid_s3'], sd['sell_s3'])
+                f1, f2 = st.columns(2); f1.metric("Risparmio Economico", f"{sd['savings_s3']:.2f} €/anno"); f2.metric("Tempo di Ritorno (PBP)", f"{sd['payback_s3']:.1f} Anni")
+            with mc2: plot_strategy_pies(sd['ac_s3'], sd['grid_s3'], sd['sell_s3'])
 
-    # --- PROSPETTO DI CONFRONTO COMPATTO ORIZZONTALE CON CAPEXHardware INCLUSO ---
-    st.markdown("### 📊 Prospetto Comparativo delle Performance Inter-Strategia")
-    
-    if has_ev:
-        col_bar1, col_bar2, col_bar3, col_bar4 = st.columns(4)
-        with col_bar1:
-            st.markdown("<div class='compare-card'>", unsafe_allow_html=True)
-            st.markdown("<div class='compare-label'>Grado di Autosufficienza [%]</div>", unsafe_allow_html=True)
-            for strat_label, rate, color in [("S1 Standard", ss_rate_s1, "#EF4444"), ("S2 Smart", ss_rate_s2, "#3B82F6"), ("S3 V2H", ss_rate_s3, "#10B981")]:
-                st.markdown(f"""
-                <small>{strat_label}</small>
-                <div class='compare-bar-container'><div class='compare-bar-fill' style='width: {rate}%; background: {color};'></div></div>
-                <div class='compare-val'>{rate:.1f} %</div>
-                """, unsafe_allow_html=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        with col_bar2:
-            st.markdown("<div class='compare-card'>", unsafe_allow_html=True)
-            st.markdown("<div class='compare-label'>Risparmio Economico Annuale [€]</div>", unsafe_allow_html=True)
-            max_savings = max(sd["savings_s1"], sd["savings_s2"], sd["savings_s3"]) if max(sd["savings_s1"], sd["savings_s2"], sd["savings_s3"]) > 0 else 1
-            for strat_label, val, color in [("S1 Standard", sd["savings_s1"], "#EF4444"), ("S2 Smart", sd["savings_s2"], "#3B82F6"), ("S3 V2H", sd["savings_s3"], "#10B981")]:
-                pct = (val / max_savings) * 100
-                st.markdown(f"""
-                <small>{strat_label}</small>
-                <div class='compare-bar-container'><div class='compare-bar-fill' style='width: {pct}%; background: {color};'></div></div>
-                <div class='compare-val'>{val:.2f} €</div>
-                """, unsafe_allow_html=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        with col_bar3:
-            st.markdown("<div class='compare-card'>", unsafe_allow_html=True)
-            st.markdown("<div class='compare-label'>Investimento Stimato (CAPEX) [€]</div>", unsafe_allow_html=True)
-            max_capex = max(sd["capex_s1_tot"], sd["capex_s2_tot"], sd["capex_s3_tot"]) if max(sd["capex_s1_tot"], sd["capex_s2_tot"], sd["capex_s3_tot"]) > 0 else 1
-            for strat_label, val, color in [("S1 Standard", sd["capex_s1_tot"], "#EF4444"), ("S2 Smart", sd["capex_s2_tot"], "#3B82F6"), ("S3 V2H", sd["capex_s3_tot"], "#10B981")]:
-                pct = (val / max_capex) * 100
-                st.markdown(f"""
-                <small>{strat_label}</small>
-                <div class='compare-bar-container'><div class='compare-bar-fill' style='width: {pct}%; background: {color};'></div></div>
-                <div class='compare-val'>{val:.0f} €</div>
-                """, unsafe_allow_html=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        with col_bar4:
-            st.markdown("<div class='compare-card'>", unsafe_allow_html=True)
-            st.markdown("<div class='compare-label'>Tempo di Ritorno Ammortamento [Anni]</div>", unsafe_allow_html=True)
-            for strat_label, val, color in [("S1 Standard", sd["payback_s1"], "#EF4444"), ("S2 Smart", sd["payback_s2"], "#3B82F6"), ("S3 V2H", sd["payback_s3"], "#10B981")]:
-                bar_pct = min(100, (val / 15.0) * 100)
-                st.markdown(f"""
-                <small>{strat_label}</small>
-                <div class='compare-bar-container'><div class='compare-bar-fill' style='width: {bar_pct}%; background: {color};'></div></div>
-                <div class='compare-val'>{val:.1f} anni</div>
-                """, unsafe_allow_html=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-    else:
-        st.info("Abilita l'opzione Veicolo Elettrico (EV) nei parametri per sbloccare il confronto avanzato.")
-
-    # Macro Bilanci Mensili Lineari
-    st.markdown("### 📊 Macro Bilanci Energetici su Base Mensile")
-    col_m1, col_m2 = st.columns(2)
-    with col_m1:
-        fig_mac_gen, ax_mac_gen = plt.subplots(figsize=(6, 2.2), dpi=200)
-        ax_mac_gen.plot(range(1, 13), sd["monthly_sol_agg"], label="Fotovoltaico", color="#D97706", lw=1.2)
-        ax_mac_gen.bar(range(1, 13), sd["monthly_wind_agg"], label="Eolico", color="#2563EB", alpha=0.15, width=0.35)
-        setup_plot_style(ax_mac_gen, T["chart_gen_title"], T["chart_x_month"], T["chart_y_kwh"])
-        st.pyplot(fig_mac_gen)
-    with col_m2:
-        fig_mac_load, ax_mac_load = plt.subplots(figsize=(6, 2.2), dpi=200)
-        ax_mac_load.plot(range(1, 13), sd["monthly_load_with_ev_s1_agg"], color="#DC2626", lw=1.6)
-        setup_plot_style(ax_mac_load, T["chart_load_title"], T["chart_x_month"], T["chart_y_kwh"])
-        st.pyplot(fig_mac_load)
-
-    # --- GIORNI TIPICI REALI CALENDATORIALI ---
+    # --- 5ª SEZIONE: ANALISI DINAMICA ORARIA (GIORNI TIPICI + CURVE 8760) ---
     st.markdown("---")
-    st.subheader(T["season_title"])
+    st.subheader("⏱ Analisi Energetica Dinamica Oraria Intra-Giornaliera")
+    
     for season_name, idx_list in hours_indices.items():
         st.markdown(f"#### {season_name}")
         col_chart1, col_chart2 = st.columns(2)
@@ -666,6 +641,8 @@ if st.session_state.sim_data is not None:
             fig_f1, ax_f1 = plt.subplots(figsize=(6, 2.5), dpi=200)
             ax_f1.plot(range(24), [sim["fer"][idx] for idx in idx_list], label="FER", color="#059669", lw=1.5)
             ax_f1.plot(range(24), [sim["load"][idx] for idx in idx_list], label="Carico", color="#475569", lw=1.2, linestyle="--")
+            ax_meteo = ax_f1.twinx()
+            ax_meteo.plot(range(24), [sim["temp"][idx] for idx in idx_list], color="#F59E0B", lw=1, linestyle=":")
             setup_plot_style(ax_f1, f"{T['chart_hourly_title']}", T["chart_h_x"], "kW")
             st.pyplot(fig_f1)
             
@@ -699,7 +676,7 @@ if st.session_state.sim_data is not None:
                 ev_soc_pct_s3 = [(sd["soc_track_ev_s3"][idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
                 ax_f2_s3.plot(range(24), h_soc_pct_s3, label="SoC BESS Casa", color='#78350F', lw=1.3)
                 ax_f2_s3.plot(range(24), ev_soc_pct_s3, label="SoC EV (Connesso)", color='#10B981', lw=1.3, marker='o', markersize=2)
-                setup_plot_style(ax_f2_s3, "S3: Bidirezionale V2H", T["chart_soc_title"], "SoC [%]")
+                setup_plot_style(ax_f2_s3, "S3: Bidirezionale V2H", "SoC [%]", "SoC [%]")
                 ax_f2_s3.set_ylim(-5, 105); ax_f2_s3.legend(fontsize=5.5, loc="lower left"); st.pyplot(fig_f2_s3)
             else:
                 fig_f2, ax_f2 = plt.subplots(figsize=(6, 2.5), dpi=200)
@@ -707,10 +684,8 @@ if st.session_state.sim_data is not None:
                 setup_plot_style(ax_f2, T["chart_soc_title"], T["chart_h_x"], "SoC [%]")
                 ax_f2.set_ylim(-5, 105); ax_f2.legend(fontsize=6, loc="lower right"); st.pyplot(fig_f2)
 
-    # --- GRAFICI ANNUALI CONTINUI A 8760 ORE PERSISTENTI CON ZOOM ---
     st.markdown("---")
     st.subheader(T["guide_8760_charts_title"])
-    
     start_hour, end_hour = st.slider("Seleziona la finestra oraria da analizzare (Zoom asse orario condiviso)", min_value=1, max_value=8760, value=(1, 8760), step=1)
     s_idx, e_idx = start_hour - 1, end_hour
     t_range = range(start_hour, end_hour + 1) if (end_hour - start_hour) > 0 else [start_hour]
@@ -726,23 +701,21 @@ if st.session_state.sim_data is not None:
     with col_ann2:
         if has_ev:
             conn_mask = [100 if ev_hours_status[h % 24] else np.nan for h in range(start_hour, end_hour + 1)]
-            # S1 continuo
+            # S1
             fig_ann_soc_s1, ax_ann_soc_s1 = plt.subplots(figsize=(7, 1.4), dpi=200)
             ax_ann_soc_s1.plot(t_range, [(v / battery_capacity_kwh * 100) for v in sd["soc_track_h_s1"][s_idx:e_idx]], label="SoC BESS Casa", color="#D97706", lw=0.6)
             ax_ann_soc_s1.plot(t_range, [(v / ev_capacity_kwh * 100) for v in sd["soc_track_ev_s1"][s_idx:e_idx]], label="SoC EV", color="#EF4444", lw=0.6, alpha=0.8)
             ax_ann_soc_s1.plot(t_range, conn_mask, label="Fascia Connessione", color="#E0F2FE", lw=2.5, alpha=0.4)
             setup_plot_style(ax_ann_soc_s1, "S1: Standard Monodirezionale", "Ore dell'Anno", "SoC [%]")
             ax_ann_soc_s1.set_ylim(-5, 105); ax_ann_soc_s1.legend(fontsize=6, loc="lower left"); st.pyplot(fig_ann_soc_s1)
-            
-            # S2 continuo
+            # S2
             fig_ann_soc_s2, ax_ann_soc_s2 = plt.subplots(figsize=(7, 1.4), dpi=200)
             ax_ann_soc_s2.plot(t_range, [(v / battery_capacity_kwh * 100) for v in sd["soc_track_h_s2"][s_idx:e_idx]], label="SoC BESS Casa", color="#B45309", lw=0.6)
             ax_ann_soc_s2.plot(t_range, [(v / ev_capacity_kwh * 100) for v in sd["soc_track_ev_s2"][s_idx:e_idx]], label="SoC EV", color="#3B82F6", lw=0.6, alpha=0.8)
             ax_ann_soc_s2.plot(t_range, conn_mask, label="Fascia Connessione", color="#E0F2FE", lw=2.5, alpha=0.4)
             setup_plot_style(ax_ann_soc_s2, "S2: Smart Charging", "Ore dell'Anno", "SoC [%]")
             ax_ann_soc_s2.set_ylim(-5, 105); ax_ann_soc_s2.legend(fontsize=6, loc="lower left"); st.pyplot(fig_ann_soc_s2)
-            
-            # S3 continuo
+            # S3
             fig_ann_soc_s3, ax_ann_soc_s3 = plt.subplots(figsize=(7, 1.4), dpi=200)
             ax_ann_soc_s3.plot(t_range, [(v / battery_capacity_kwh * 100) for v in sd["soc_track_h_s3"][s_idx:e_idx]], label="SoC BESS Casa", color="#78350F", lw=0.6)
             ax_ann_soc_s3.plot(t_range, [(v / ev_capacity_kwh * 100) for v in sd["soc_track_ev_s3"][s_idx:e_idx]], label="SoC EV", color="#10B981", lw=0.6, alpha=0.8)
@@ -754,20 +727,6 @@ if st.session_state.sim_data is not None:
             ax_ann_soc.plot(t_range, [(v / battery_capacity_kwh * 100) for v in sd["soc_track_h_s1"][s_idx:e_idx]], label="SoC Casa", color="#D97706", lw=0.6)
             setup_plot_style(ax_ann_soc, "Evoluzione dello Stato di Carica nel Periodo Selezionato", "Ore dell'Anno", "SoC [%]")
             ax_ann_soc.set_ylim(-5, 105); ax_ann_soc.legend(fontsize=6.5, loc="lower left"); st.pyplot(fig_ann_soc)
-
-    # Sintesi Annuale Istogramma Comparativo
-    st.markdown("---")
-    st.subheader(T["final_chart_title"])
-    fig12, ax12 = plt.subplots(figsize=(12, 2.4), dpi=200)
-    x_idx = range(1, 13)
-    ax12.bar([x - 0.22 for x in x_idx], sd["monthly_load_with_ev_s1_agg"], width=0.18, label=T["final_l1"], color='#94A3B8', alpha=0.25)
-    ax12.bar([x - 0.07 for x in x_idx], sd["monthly_ac_s1_agg"], width=0.15, label=T["final_l2"] if has_ev else "Autoconsumo", color='#EF4444', alpha=0.7)
-    if has_ev:
-        ax12.bar([x + 0.07 for x in x_idx], sd["monthly_ac_s2_agg"], width=0.15, label=T["final_l3"], color='#3B82F6', alpha=0.8)
-        ax12.bar([x + 0.22 for x in x_idx], sd["monthly_ac_s3_agg"], width=0.15, label=T["final_l4"], color='#10B981', alpha=0.9)
-    setup_plot_style(ax12, T["final_chart_sub"], T["final_x"], T["chart_y_kwh"])
-    ax12.set_xticks(x_idx); ax12.set_xticklabels(T["months_labels"])
-    ax12.legend(fontsize=7, frameon=False, loc="upper right"); st.pyplot(fig12)
 
 st.markdown("---")
 st.caption("RES-EV Microgrid Core Platform | 8760-Hour Chronological Solver | Engine: PVGIS API & Open-Meteo Weather Dataset")
