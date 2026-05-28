@@ -476,7 +476,7 @@ def get_8760_profiles():
         load_8760.append(p_base + p_heat + p_cool)
 
     return {
-        "pv": pv_8760, "wt": wt_8760, "fer": [pv_8760[i] + wt_8760[i] for i in range(len(sim["fer"]))],
+        "pv": pv_8760, "wt": wt_8760, "fer": [pv_8760[i] + wt_8760[i] for i in range(min(len(pv_8760), len(wt_8760)))],
         "load": load_8760, "heating": heating_8760, "cooling": cooling_8760, "base": base_8760
     }
 
