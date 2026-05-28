@@ -22,7 +22,7 @@ st.markdown("""
     h3 { font-size: 1.0rem !important; font-weight: 600; color: #334155; margin-bottom: 0.4rem; }
     .stNumberInput > label, .stSelectbox > label, .stTextInput > label, .stCheckbox > label { font-size: 0.78rem !important; font-weight: 500; color: #475569; }
     
-    /* Riduzione dimensione font dei valori metrici per renderli più compatti ed eleganti */
+    /* Riduzione dimensione font dei valori metrici */
     [data-testid="stMetricValue"] {
         font-size: 1.15rem !important;
         font-weight: 700 !important;
@@ -105,11 +105,13 @@ LANG_DICT = {
     }
 }
 
-# --- APPLICAZIONE SELEZIONE LINGUA E RENDERING TITOLO ---
+# --- INIZIALIZZAZIONE STATO DI SESSIONE ---
+if "lat" not in st.session_state: st.session_state.lat = 42.3498
+if "lon" not in st.session_state: st.session_state.lon = 13.3995
+if "sim_data" not in st.session_state: st.session_state.sim_data = None
+
+# --- APPLICAZIONE SELEZIONE LINGUA DINAMICA ---
 c_title, c_lang = st.columns([4, 1])
-with c_title:
-    # Mostriamo inizialmente il titolo in italiano come fallback prima della scelta dell'utente
-    st.markdown(f"<h1>{LANG_DICT['ITA']['title']}</h1>", unsafe_allow_html=True)
 with c_lang:
     selected_lang_flag = st.selectbox(
         "🌐 Language / Lingua",
@@ -119,14 +121,13 @@ with c_lang:
 lang = "ITA" if "Italiano" in selected_lang_flag else "ENG"
 T = LANG_DICT[lang]
 
-# Sottotitolo dinamico in base alla lingua scelta
+with c_title:
+    # Il titolo ora cambia dinamicamente in base alla selezione di `lang`
+    st.markdown(f"<h1>{T['title']}</h1>", unsafe_allow_html=True)
+
 st.markdown(f"<p style='color: #475569; font-size: 0.95rem; margin-bottom: 1.5rem;'>{T['subtitle']}</p>", unsafe_allow_html=True)
 
 days_in_months = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-
-if "lat" not in st.session_state: st.session_state.lat = 42.3498
-if "lon" not in st.session_state: st.session_state.lon = 13.3995
-if "sim_data" not in st.session_state: st.session_state.sim_data = None
 
 # --- PANNELLO PARAMETRI ---
 st.markdown(f"## {T['params_title']}")
@@ -583,7 +584,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         "bess_p_s1": bess_p_s1_hourly, "bess_p_s2": bess_p_s2_hourly, "bess_p_s3": bess_p_s3_hourly
     }
 
-# --- RENDERING ORDINATO DELLE SEZIONI DI REPORT ---
+# --- RENDERING DEGLI OUTPUT CON RIGENERAZIONE REATTIVA DELLO SLIDER ---
 if st.session_state.sim_data is not None:
     sd = st.session_state.sim_data
     sim = sd["sim"]
@@ -872,7 +873,13 @@ if st.session_state.sim_data is not None:
     # --- 6ª SEZIONE: PARTE INTERATTIVA CONTINUA ANNUALIZZATA (8760 ORE) ---
     st.markdown("---")
     st.subheader(T["guide_8760_charts_title"])
-    start_hour, end_hour = st.slider("Seleziona la finestra oraria da analizzare (Zoom asse orario condiviso)" if lang=="ITA" else "Select hour window (Shared timeline zoom)", min_value=1, max_value=8760, value=(1, 8760), step=1)
+    
+    # Reinserito il selettore slider per la finestra temporale continua 8760h.
+    # Lavora direttamente su `st.session_state.sim_data` garantendo reattività totale senza resettare i conti.
+    start_hour, end_hour = st.slider(
+        "Seleziona la finestra oraria da analizzare (Zoom asse orario condiviso)" if lang=="ITA" else "Select hour window (Shared timeline zoom)", 
+        min_value=1, max_value=8760, value=(1, 8760), step=1
+    )
     s_idx, e_idx = start_hour - 1, end_hour
     t_range = np.arange(start_hour, end_hour + 1) if (end_hour - start_hour) > 0 else np.array([start_hour])
     
