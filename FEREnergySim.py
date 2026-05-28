@@ -401,7 +401,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
 
     for i in range(8760):
         is_connected = conn_annual[i]
-        if has_ev Und not is_connected and (i == 0 or conn_annual[i-1]):
+        if has_ev and not is_connected and (i == 0 or conn_annual[i-1]):
             current_ev_soc_s3 = max(0.0, current_ev_soc_s3 - daily_ev_demand_kwh)
 
         soc_track_ev_s3.append(current_ev_soc_s3 if is_connected else np.nan)
