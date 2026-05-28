@@ -829,7 +829,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
             )
 
             temp_profile = [
-                temp_2m[idx]
+                sim["temp"][idx]
                 for idx in idx_list
             ]
 
