@@ -57,7 +57,7 @@ LANG_DICT = {
         #### 1. Origine dei Dati e Ingestione (Data Ingestion)
         * **Fotovoltaico (PV):** L'applicazione interroga le API **EU-PVGIS** per ricavare l'irraggiamento mensile tipico, ridistribuendolo poi su base oraria annua (8760 punti) legandolo alla geometria solare del sito (elevazione ed equazione del tempo).
         * **Micro-Eolico (WT):** Scarica il profilazione oraria annuale completo a 8760 punti di velocità del vento a 10m dalle API **Open-Meteo (Reanalysis)**, riscalandolo all'altezza mozzo impostata tramite legge logaritmica.
-        * **Firma Termica dell'Edificio:** Genera la richiesta oraria di climatizzazione invernale ed estiva per tutte le 8760 ore dell'anno incrociando la temperatura esterna oraria del dataset Open-Meteo con le dispersioni geometriche della classe energetica dell'involucro edilizio.
+        * **Carico Termico dell'Edificio:** Genera la richiesta oraria di climatizzazione invernale ed estiva per tutte le 8760 ore dell'anno incrociando la temperatura esterna oraria del dataset Open-Meteo con le dispersioni geometriche della classe energetica dell'involucro edilizio.
 
         #### 2. Logica dei Tre Scenari di Controllo Comparati
         * **Scenario 1 (Monodirezionale Standard):** L'EV assorbe potenza dalla Wallbox a tasso costante esclusivamente nelle ore in cui è fisicamente connesso, ripartendo linearmente il fabbisogno chilometrico giornaliero. Il BESS agisce da tampone locale passivo.
@@ -288,19 +288,19 @@ exp_pv, exp_wind, exp_batt, exp_load, exp_eco = st.columns(5)
 
 with exp_pv.expander(T["pv_title"], expanded=False):
     st.markdown(f"<div class='custom-note'>{T['pv_help']}</div>", unsafe_allow_html=True)
-    pv_power = st.number_input(T["pv_p"], min_value=1, max_value=20, value=6, step=1)
+    pv_power = st.number_input(T["pv_p"], min_value=1, max_value=20, value=3, step=1)
     pv_tilt = st.number_input(T["pv_t"], min_value=0, max_value=90, value=35, step=5)
     pv_azimuth = st.number_input(T["pv_az"], min_value=-180, max_value=180, value=0, step=5)
     pv_efficiency = st.number_input(T["pv_eff"], min_value=10, max_value=30, value=20, step=1)
 
 with exp_wind.expander(T["wind_title"], expanded=False):
     st.markdown(f"<div class='custom-note'>{T['wind_help']}</div>", unsafe_allow_html=True)
-    wind_power_kw = st.number_input(T["wind_p"], min_value=1, max_value=20, value=3, step=1)
+    wind_power_kw = st.number_input(T["wind_p"], min_value=1, max_value=20, value=1, step=1)
     hub_height = st.number_input(T["wind_h"], min_value=10, max_value=200, value=25, step=5)
 
 with exp_batt.expander(T["batt_title"], expanded=False):
     st.markdown(f"<div class='custom-note'>{T['batt_help']}</div>", unsafe_allow_html=True)
-    battery_capacity_kwh = st.number_input(T["batt_c"], min_value=0, max_value=100, value=15, step=1)
+    battery_capacity_kwh = st.number_input(T["batt_c"], min_value=0, max_value=100, value=10, step=1)
     battery_eff = st.number_input(T["batt_eff"], min_value=70, max_value=100, value=92, step=1) / 100.0
     dod_limit = st.number_input(T["batt_dod"], min_value=50, max_value=100, value=80, step=5)
     soc_min = battery_capacity_kwh * (1 - (dod_limit / 100.0))
@@ -309,7 +309,7 @@ with exp_batt.expander(T["batt_title"], expanded=False):
 with exp_load.expander(T["load_title"], expanded=False):
     st.markdown(f"<div class='custom-note'>{T['load_help']}</div>", unsafe_allow_html=True)
     house_area = st.number_input(T["load_area"], min_value=40, max_value=300, value=130, step=10)
-    building_class = st.selectbox(T["load_class"], ["A4", "A3", "A2", "A1", "B", "C", "D"])
+    building_class = st.selectbox(T["load_class"], ["A4", "A3", "A2", "A1", "B", "C", "D"],index=4)
     occupants = st.number_input(T["load_occ"], min_value=1, max_value=8, value=4, step=1)
     heat_pump_cop = st.number_input(T["load_cop"], min_value=2.0, max_value=5.0, value=3.6, step=0.1, format="%.1f")
     has_ev = st.checkbox(T["load_ev_check"], value=True)
