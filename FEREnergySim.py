@@ -27,9 +27,8 @@ st.markdown("""
     .custom-note-result { padding: 0.6rem 0.75rem; border-radius: 0.25rem; font-size: 0.82rem; background-color: #F0FDF4; color: #166534; border-left: 3px solid #22C55E; margin-bottom: 0.8rem; }
     div[data-testid="column"] { padding: 0px 1px !important; }
     
-    /* Stili CSS personalizzati per la barra di confronto compatta */
     .compare-card { background: #FFFFFF; border: 1px solid #E2E8F0; padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 0.5rem;}
-    .compare-label { font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 0.2rem; }
+    .compare-label { font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 0.4rem; }
     .compare-bar-container { background: #E2E8F0; border-radius: 0.25rem; height: 10px; width: 100%; position: relative; margin-bottom: 0.3rem;}
     .compare-bar-fill { height: 100%; border-radius: 0.25rem; }
     .compare-val { font-size: 0.85rem; font-weight: 700; color: #0F172A; text-align: right; }
@@ -74,7 +73,7 @@ LANG_DICT = {
         "ev_capex_s1": "Costo Aggiuntivo Wallbox S1 Standard (€)", "ev_capex_s2": "Costo Aggiuntivo Smart Wallbox S2 (€)", "ev_capex_s3": "Costo Aggiuntivo Stazione Bidirezionale V2H S3 (€)",
         "gis_title": "📍 Posizionamento Geografico Impianto", "gis_search": "Cerca Comune o Coordinate", "gis_btn": "🔍 Aggiorna Mappa Sito", "gis_active": "**Sito Attivo:**",
         "run_btn": "⚡ Esegui Simulazione Energetica Dinamica (8760 Punti)",
-        "results_title": "📊 Analisi Output e Performance Annuali",
+        "results_title": "📊 Analisi Output e Indicatori di Performance Annuali",
         "results_help": "🔬 Risultati consolidati sull'orizzonte temporale continuo di 8760 ore annuali.",
         "kpi_ac": "Autoconsumo", "kpi_bill_savings": "Risparmio Economico", "kpi_payback": "Tempo di Ritorno",
         "chart_gen_title": "Profili di Generazione Mensile Integrata", "chart_load_title": "Profili di Fabbisogno Mensile Integrato (Riscaldamento vs Condizionamento)",
@@ -92,6 +91,7 @@ LANG_DICT = {
 lang = "ITA"
 T = LANG_DICT[lang]
 
+# Inizializzazione stabile dei session state geografici e di memoria dati
 if "lat" not in st.session_state: st.session_state.lat = 42.3498
 if "lon" not in st.session_state: st.session_state.lon = 13.3995
 if "sim_data" not in st.session_state: st.session_state.sim_data = None
@@ -129,7 +129,7 @@ with exp_eco.expander(T["eco_title"], expanded=False):
     val_injection = st.number_input(T["eco_sell"], min_value=0.00, max_value=2.00, value=0.09, step=0.01, format="%.2f")
     capex_base = st.number_input(T["eco_capex"], min_value=1000, max_value=100000, value=11000, step=500)
 
-# INTERFACCIA EV DIURNA / OVERNIGHT SEMPLIFICATA
+# INTERFACCIA DI CONNESSIONE EV
 ev_hours_status = [False] * 24
 if has_ev:
     st.markdown(f"### {T['ev_section_title']}")
@@ -175,7 +175,7 @@ with col_loc1:
         headers = {"User-Agent": "FEREnergySim_v2_AcademicApplication/1.1 (prof.villante.simulation@univaq.it)"}
         geo_url = f"https://nominatim.openstreetmap.org/search?q={requests.utils.quote(location_query)}&format=json&limit=1"
         try:
-            res = requests.get(geo_url, headers=headers, timeout=5)
+            res = requests.get(headers=headers, url=geo_url, timeout=5)
             data = res.json()
             if data and len(data) > 0: 
                 st.session_state.lat = float(data[0]["lat"])
@@ -195,6 +195,15 @@ with col_loc2:
     m = folium.Map(location=[st.session_state.lat, st.session_state.lon], zoom_start=6, tiles="CartoDB positron")
     folium.Marker([st.session_state.lat, st.session_state.lon]).add_to(m)
     map_data = st_folium(m, width="100%", height=150, key=f"map_widget_{st.session_state.lat}_{st.session_state.lon}")
+
+def setup_plot_style(ax, title, xlabel, ylabel):
+    ax.set_title(title, fontsize=9, fontweight='600', color='#0F172A', loc='left', pad=8)
+    ax.set_xlabel(xlabel, fontsize=7.5, color='#475569', labelpad=4)
+    ax.set_ylabel(ylabel, fontsize=7.5, color='#475569', labelpad=4)
+    ax.tick_params(axis='both', which='major', labelsize=7, labelcolor='#475569')
+    ax.grid(True, linestyle='--', alpha=0.4, color='#CBD5E1', lw=0.6)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
 
 def get_8760_profiles():
     pvgis_url = f"https://re.jrc.ec.europa.eu/api/v5_2/PVcalc?lat={lat}&lon={lon}&peakpower={pv_power}&angle={pv_tilt}&aspect={pv_azimuth}&loss=14&outputformat=json"
@@ -435,7 +444,6 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
     total_demand_annual = sum(sim["load"]) + annual_ev_kwh
     total_generation_annual = sum(sim["fer"])
 
-    monthly_load_agg = [0]*12
     monthly_load_with_ev_s1_agg = [0]*12
     monthly_ac_s1_agg, monthly_ac_s2_agg, monthly_ac_s3_agg = [0]*12, [0]*12, [0]*12
     monthly_sol_agg, monthly_wind_agg = [0]*12, [0]*12
@@ -482,7 +490,10 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         "total_load_with_ev_s1": total_load_with_ev_s1
     }
 
-# --- INTERFACCIA OUTPUT PERSISTENTE ---
+# --- INTERFACCIA OUTPUT UTENTE PERSISTENTE ---
+# Assicurazione che T sia definita a livello di esecuzione interfaccia
+T = LANG_DICT[lang]
+
 if st.session_state.sim_data is not None:
     sd = st.session_state.sim_data
     sim = sd["sim"]
@@ -505,7 +516,6 @@ if st.session_state.sim_data is not None:
     else:
         tab1, = st.tabs(["🏠 Configurazione Impianto Base (Senza EV)"])
 
-    # --- FUNZIONE INTERNA PER IL DISEGNO DELLE TORTE PER OGNI STRATEGIA ---
     def plot_strategy_pies(ac, grid, sell):
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(5, 2.3), dpi=150)
         ax1.pie([ac, grid], labels=['Autoconsumo', 'Rete'], colors=['#10B981', '#EF4444'], autopct='%1.1f%%', startangle=90, textprops={'fontsize':6.5})
@@ -575,12 +585,11 @@ if st.session_state.sim_data is not None:
             with mc2:
                 plot_strategy_pies(sd['ac_s3'], sd['grid_s3'], sd['sell_s3'])
 
-    # --- NUOVO PROSPETTO DI CONFRONTO COMPATTO ORIZZONTALE (SINTESI PRESTAZIONI) ---
+    # --- PROSPETTO DI CONFRONTO COMPATTO ORIZZONTALE CON CAPEXHardware INCLUSO ---
     st.markdown("### 📊 Prospetto Comparativo delle Performance Inter-Strategia")
     
     if has_ev:
-        col_bar1, col_bar2, col_bar3 = st.columns(3)
-        
+        col_bar1, col_bar2, col_bar3, col_bar4 = st.columns(4)
         with col_bar1:
             st.markdown("<div class='compare-card'>", unsafe_allow_html=True)
             st.markdown("<div class='compare-label'>Grado di Autosufficienza [%]</div>", unsafe_allow_html=True)
@@ -607,8 +616,20 @@ if st.session_state.sim_data is not None:
 
         with col_bar3:
             st.markdown("<div class='compare-card'>", unsafe_allow_html=True)
+            st.markdown("<div class='compare-label'>Investimento Stimato (CAPEX) [€]</div>", unsafe_allow_html=True)
+            max_capex = max(sd["capex_s1_tot"], sd["capex_s2_tot"], sd["capex_s3_tot"]) if max(sd["capex_s1_tot"], sd["capex_s2_tot"], sd["capex_s3_tot"]) > 0 else 1
+            for strat_label, val, color in [("S1 Standard", sd["capex_s1_tot"], "#EF4444"), ("S2 Smart", sd["capex_s2_tot"], "#3B82F6"), ("S3 V2H", sd["capex_s3_tot"], "#10B981")]:
+                pct = (val / max_capex) * 100
+                st.markdown(f"""
+                <small>{strat_label}</small>
+                <div class='compare-bar-container'><div class='compare-bar-fill' style='width: {pct}%; background: {color};'></div></div>
+                <div class='compare-val'>{val:.0f} €</div>
+                """, unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        with col_bar4:
+            st.markdown("<div class='compare-card'>", unsafe_allow_html=True)
             st.markdown("<div class='compare-label'>Tempo di Ritorno Ammortamento [Anni]</div>", unsafe_allow_html=True)
-            # Per il PBP, una barra più corta è migliore, impostiamo scala inversa basata sul massimo di 15 anni
             for strat_label, val, color in [("S1 Standard", sd["payback_s1"], "#EF4444"), ("S2 Smart", sd["payback_s2"], "#3B82F6"), ("S3 V2H", sd["payback_s3"], "#10B981")]:
                 bar_pct = min(100, (val / 15.0) * 100)
                 st.markdown(f"""
@@ -618,7 +639,7 @@ if st.session_state.sim_data is not None:
                 """, unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
     else:
-        st.info("Abilita l'opzione Veicolo Elettrico (EV) nei parametri per sbloccare il confronto multicriterio avanzato delle strategie.")
+        st.info("Abilita l'opzione Veicolo Elettrico (EV) nei parametri per sbloccare il confronto avanzato.")
 
     # Macro Bilanci Mensili Lineari
     st.markdown("### 📊 Macro Bilanci Energetici su Base Mensile")
@@ -678,7 +699,7 @@ if st.session_state.sim_data is not None:
                 ev_soc_pct_s3 = [(sd["soc_track_ev_s3"][idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
                 ax_f2_s3.plot(range(24), h_soc_pct_s3, label="SoC BESS Casa", color='#78350F', lw=1.3)
                 ax_f2_s3.plot(range(24), ev_soc_pct_s3, label="SoC EV (Connesso)", color='#10B981', lw=1.3, marker='o', markersize=2)
-                setup_plot_style(ax_f2_s3, "S3: Bidirezionale V2H", T["chart_h_x"], "SoC [%]")
+                setup_plot_style(ax_f2_s3, "S3: Bidirezionale V2H", T["chart_soc_title"], "SoC [%]")
                 ax_f2_s3.set_ylim(-5, 105); ax_f2_s3.legend(fontsize=5.5, loc="lower left"); st.pyplot(fig_f2_s3)
             else:
                 fig_f2, ax_f2 = plt.subplots(figsize=(6, 2.5), dpi=200)
