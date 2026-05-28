@@ -15,7 +15,7 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700&display=swap');
     
-    html, body, [data-testid=\"stAppViewContainer\"], .main {
+    html, body, [data-testid="stAppViewContainer"], .main {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
     }
     .reportview-container .main .block-container { padding-top: 0.5rem; padding-bottom: 1rem; }
@@ -91,7 +91,7 @@ LANG_DICT = {
         * **Primavera (15 Aprile - Lunedì):** Ottimo bilancio FER, riscaldamento quasi nullo.
         * **Estate (15 Luglio - Lunedì):** Picco solare a mezzogiorno, carico AC concentrato nelle ore pomeridiane.
         * **Autunno (15 Ottobre - Martedì):** Transizione climatica con intermittenza meteorologica.
-        *I grafici di destra mostrano l'evoluzione dei SoC evidenziando la scarica attiva serale della batteria dell'auto nel caso del V2H (Scenario 3).*
+        *I grafici di destra mostrano l'evoluzione dei SoC evidenziando la carica/scarica delle diverse strategie della batteria dell'auto.*
         """,
         
         "guide_8760_charts_title": "📈 Guida all'Analisi delle Curve Continue Annuali (8760 ore)",
@@ -119,7 +119,7 @@ LANG_DICT = {
         "eco_tech_expl": "⚙️ **Analisi Finanziaria:** Integra orariamente i risparmi in bolletta causati dall'autoconsumo e i profitti derivanti dall'energia immessa.",
         
         "load_ev_check": "Abilita Veicolo Elettrico (EV)",
-        "ev_section_title": "🚗 Profilazione EV & Configurazione Infrastruttura di Ricarica / V2H",
+        "ev_section_title": "🚗 Profilazione EV & Configurazione Infrastruttura di Ricarica / V2H Configuration",
         "ev_help": "💡 Spunta le ore in cui l'auto è connessa alla Wallbox domestica. Nelle ore non spuntate l'auto si assume in movimento.",
         "ev_tech_expl": "⚙️ **Modellazione EV & V2H:** Quando disconnesso, il veicolo drena energia dalla batteria interna in base ai km giornalieri; quando è connesso partecipa al bilanciamento del nodo energetico domestico.",
         
@@ -151,7 +151,7 @@ LANG_DICT = {
         "legend_soc_h": "SoC Batteria Casa", "legend_grid_on": "Accoppiamento Veicolo Attivo",
         "final_chart_title": "📊 Analisi Comparativa delle Strategie di Autoconsumo sull'Anno",
         "final_chart_sub": "Copertura Energetica ed Autoconsumo Mensile Effettivo nelle Strategie Simulation",
-        "final_x": "Mese dell'Anno", "final_l1": "Fabbisogno Utenza Lordo", "final_l2": "S1: Monodirezionale Standard", "final_l3": "S2: Smart Charging", "final_l4": "S3: Bidirezionale V2H/V2L",
+        "final_x": "Mese dell'Anno", "final_l1": "Fabbisogno Utenza Lordo", "final_l2": "S1: Monodirezionale Standard", "final_l3": "S2: Smart Charging", "final_l4": "S3: Bidirectional V2H/V2L",
         "months_labels": ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'],
         "hp_share": "Quota Riscaldamento", "ac_share": "Quota Condizionamento (AC)",
         "show_tech_details": "Mostra Dettagli Algoritmo Modulo"
@@ -748,8 +748,13 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
             
             ax_f2.plot(range(24), h_soc_pct, label=T["legend_soc_h"], color='#D97706', lw=1.3, marker='s', markersize=2)
             if has_ev:
-                ev_soc_pct = [(soc_track_ev_s3[idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
-                ax_f2.plot(range(24), ev_soc_pct, label="SoC EV (S3 V2H Reale)", color='#10B981', lw=1.3, marker='o', markersize=2)
+                ev_soc_s1_pct = [(soc_track_ev_s1[idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
+                ev_soc_s2_pct = [(soc_track_ev_s2[idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
+                ev_soc_s3_pct = [(soc_track_ev_s3[idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
+                
+                ax_f2.plot(range(24), ev_soc_s1_pct, label="SoC EV (S1 Standard)", color='#EF4444', lw=1.3, marker='o', markersize=2, alpha=0.8)
+                ax_f2.plot(range(24), ev_soc_s2_pct, label="SoC EV (S2 Smart)", color='#3B82F6', lw=1.3, marker='^', markersize=2, alpha=0.8)
+                ax_f2.plot(range(24), ev_soc_s3_pct, label="SoC EV (S3 V2H)", color='#10B981', lw=1.3, marker='v', markersize=2, alpha=0.9)
             setup_plot_style(ax_f2, f"{T['chart_soc_title']}", T["chart_h_x"], "State of Charge [%]")
             ax_f2.set_ylim(-5, 105)
             ax_f2.legend(fontsize=6.5, frameon=False, loc="lower left")
