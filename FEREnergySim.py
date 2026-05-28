@@ -91,7 +91,7 @@ LANG_DICT = {
         * **Primavera (15 Aprile - Lunedì):** Ottimo bilancio FER, riscaldamento quasi nullo.
         * **Estate (15 Luglio - Lunedì):** Picco solare a mezzogiorno, carico AC concentrato nelle ore pomeridiane.
         * **Autunno (15 Ottobre - Martedì):** Transizione climatica con intermittenza meteorologica.
-        *I grafici di destra mostrano l'evoluzione dei SoC evidenziando la scarica attiva serale della batteria dell'auto nel caso del V2H (Scenario 3).*
+        *I grafici di destra mostrano l'evoluzione dei SoC mettendo a confronto l'andamento delle tre strategie competitive sia per lo stoccaggio residenziale sia per l'accumulo a bordo veicolo.*
         """,
         
         "guide_8760_charts_title": "📈 Guida all'Analisi delle Curve Continue Annuali (8760 ore)",
@@ -145,13 +145,13 @@ LANG_DICT = {
         "season_help": "🔬 Analisi intra-giornaliera su specifiche giornate reali feriali del calendario continuo.",
         "inv": "Inverno (15 Gennaio - Lunedì)", "pri": "Primavera (15 Aprile - Lunedì)", "est": "Estate (15 Luglio - Lunedì)", "aut": "Autunno (15 Ottobre - Martedì)",
         "inv_t": "❄️ Giorno Reale Invernale (15 Gennaio - Lunedì)", "pri_t": "🌱 Giorno Reale Primavera (15 Aprile - Lunedì)", "est_t": "☀️ Giorno Reale Estivo (15 Luglio - Lunedì)", "aut_t": "🍂 Giorno Reale Autunnale (15 Ottobre - Martedì)",
-        "chart_hourly_title": "Bilancio di Potenza Orario", "chart_soc_title": "Stato di Carica (SoC)",
+        "chart_hourly_title": "Bilancio di Potenza Orario", "chart_soc_title": "Stato di Carica Comparativo (SoC)",
         "chart_h_x": "Ora del Giorno [h]", "chart_h_y_flow": "Potenza/Energia Oraria [kWh]", "chart_h_y_soc": "State of Charge [%]",
         "legend_fer": "Generazione FER", "legend_base_heat": "Carico Base + Riscaldamento", "legend_ac": "Carico Condizionamento (AC)", "legend_tot_ev": "Carico Totale + Ricarica EV",
         "legend_soc_h": "SoC Batteria Casa", "legend_grid_on": "Accoppiamento Veicolo Attivo",
         "final_chart_title": "📊 Analisi Comparativa delle Strategie di Autoconsumo sull'Anno",
         "final_chart_sub": "Copertura Energetica ed Autoconsumo Mensile Effettivo nelle Strategie Simulation",
-        "final_x": "Mese dell'Anno", "final_l1": "Fabbisogno Utenza Lordo", "final_l2": "S1: Monodirezionale Standard", "final_l3": "S2: Smart Charging", "final_l4": "S3: Bidirezionale V2H/V2L",
+        "final_x": "Mese dell'Anno", "final_l1": "Fabbisogno Utenza Lordo", "final_l2": "S1: Monodirezionale Standard", "final_l3": "S2: Smart Charging", "final_l4": "S3: Bidirectional V2H/V2L",
         "months_labels": ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'],
         "hp_share": "Quota Riscaldamento", "ac_share": "Quota Condizionamento (AC)",
         "show_tech_details": "Mostra Dettagli Algoritmo Modulo"
@@ -202,6 +202,7 @@ LANG_DICT = {
         * **Spring (Apr 15th - Monday):** High RES generation, negligible ambient conditioning.
         * **Summer (Jul 15th - Monday):** Peak solar output at noon, high AC loads during afternoon hours.
         * **Autumn (Oct 15th - Tuesday):** Weather transition with highly intermittent wind and solar resource.
+        *The right plots showcase the comparative SoC evolution tracking all 3 active strategies simultaneously for both stationary and automotive assets.*
         """,
         
         "guide_8760_charts_title": "📈 Guide to Continuous Annual Curve Analysis (8760 Hours)",
@@ -255,7 +256,7 @@ LANG_DICT = {
         "season_help": "🔬 Intra-day analysis on specific calendar real business days.",
         "inv": "Winter (Jan 15th - Monday)", "pri": "Spring (Apr 15th - Monday)", "est": "Summer (Jul 15th - Monday)", "aut": "Autumn (Oct 15th - Tuesday)",
         "inv_t": "❄️ Real Winter Day (January 15th - Monday)", "pri_t": "🌱 Real Spring Day (April 15th - Monday)", "est_t": "☀️ Real Summer Day (July 15th - Monday)", "aut_t": "🍂 Real Autumn Day (October 15th - Tuesday)",
-        "chart_hourly_title": "Hourly Power Balance", "chart_soc_title": "State of Charge (SoC)",
+        "chart_hourly_title": "Hourly Power Balance", "chart_soc_title": "Comparative State of Charge (SoC)",
         "chart_h_x": "Time of Day [h]", "chart_h_y_flow": "Hourly Power/Energy [kWh]", "chart_h_y_soc": "State of Charge [%]",
         "legend_fer": "RES Generation", "legend_base_heat": "Base Load + Heating", "legend_ac": "Cooling Load (AC)", "legend_tot_ev": "Total Load + EV Charge",
         "legend_soc_h": "Home BESS SoC", "legend_grid_on": "Vehicle Connected",
@@ -506,6 +507,12 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         ac_s1_hourly[i] = local_ac
         soc_track_h_s1.append(soc_h_s1)
         soc_track_ev_s1.append(current_ev_soc_s1)
+
+    # Inizializzazione vettori per S2 ed S3 per evitare errori nel blocco grafici se has_ev è False
+    soc_track_h_s2 = list(soc_track_h_s1)
+    soc_track_ev_s2 = list(soc_track_ev_s1)
+    soc_track_h_s3 = list(soc_track_h_s1)
+    soc_track_ev_s3 = list(soc_track_ev_s1)
 
     if has_ev:
         # --- SIMULAZIONE SCENARIO 2: Smart Charging ---
@@ -808,33 +815,38 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
             
         with col_chart2:
             fig_f2, ax_f2 = plt.subplots(figsize=(6, 2.5), dpi=200)
-            target_soc_h = soc_track_h_s3 if has_ev else soc_track_h_s1
-            h_soc_pct = [(target_soc_h[idx] / battery_capacity_kwh * 100) if battery_capacity_kwh > 0 else 0 for idx in idx_list]
             
             # Sfondo per le ore di connessione EV
             if has_ev:
                 for h in range(24):
                     if ev_hours_status[h]:
                         ax_f2.axvspan(h-0.5, h+0.5, color='#E0F2FE', alpha=0.4, lw=0)
-                ax_f2.text(12, 10, "Azzurro: EV Connesso in Rete", fontsize=6, color="#0284C7", ha='center', style='italic')
+                ax_f2.text(12, 5, "Sfondo Azzurro: EV Connesso", fontsize=5.5, color="#0284C7", ha='center', style='italic')
 
-            ax_f2.plot(range(24), h_soc_pct, label="SoC Casa", color='#D97706', lw=1.5, marker='s', markersize=2)
-
+            # Calcolo e plottaggio SoC BESS Casa per le 3 Strategie
+            h_soc_pct_s1 = [(soc_track_h_s1[idx] / battery_capacity_kwh * 100) if battery_capacity_kwh > 0 else 0 for idx in idx_list]
+            ax_f2.plot(range(24), h_soc_pct_s1, label="SoC BESS (S1 Standard)", color='#D97706', lw=1.2, linestyle='--', marker='s', markersize=2)
+            
             if has_ev:
-                ev_soc_s1_pct = [(v / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for v in soc_track_ev_s1]
-                ev_soc_s2_pct = [(v / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for v in soc_track_ev_s2]
-                ev_soc_s3_pct = [(v / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for v in soc_track_ev_s3]
+                h_soc_pct_s2 = [(soc_track_h_s2[idx] / battery_capacity_kwh * 100) if battery_capacity_kwh > 0 else 0 for idx in idx_list]
+                h_soc_pct_s3 = [(soc_track_h_s3[idx] / battery_capacity_kwh * 100) if battery_capacity_kwh > 0 else 0 for idx in idx_list]
+                ax_f2.plot(range(24), h_soc_pct_s2, label="SoC BESS (S2 Smart)", color='#B45309', lw=1.2, linestyle=':')
+                ax_f2.plot(range(24), h_soc_pct_s3, label="SoC BESS (S3 V2H)", color='#78350F', lw=1.5)
 
-                ax_ann_soc.plot(range(8760), ev_soc_s1_pct, label="SoC EV (S1 Standard)", color="#EF4444", lw=0.4,
-                                alpha=0.6)
-                ax_ann_soc.plot(range(8760), ev_soc_s2_pct, label="SoC EV (S2 Smart)", color="#3B82F6", lw=0.4,
-                                alpha=0.6)
-                ax_ann_soc.plot(range(8760), ev_soc_s3_pct, label="SoC EV (S3 V2H)", color="#10B981", lw=0.4, alpha=0.7)
-                setup_plot_style(ax_f2, f"{T['chart_soc_title']}", T["chart_h_x"], "State of Charge [%]")
-                ax_f2.set_ylim(-5, 105)
-                ax_f2.set_xlim(-0.5, 23.5)
-                ax_f2.legend(fontsize=6, frameon=True, loc="lower right")
-                st.pyplot(fig_f2)
+                # Calcolo e plottaggio SoC EV per le 3 Strategie
+                ev_soc_pct_s1 = [(soc_track_ev_s1[idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
+                ev_soc_pct_s2 = [(soc_track_ev_s2[idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
+                ev_soc_pct_s3 = [(soc_track_ev_s3[idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
+                
+                ax_f2.plot(range(24), ev_soc_pct_s1, label="SoC EV (S1 Standard)", color='#EF4444', lw=1.0, alpha=0.7, linestyle='--')
+                ax_f2.plot(range(24), ev_soc_pct_s2, label="SoC EV (S2 Smart)", color='#3B82F6', lw=1.2, alpha=0.8, linestyle=':')
+                ax_f2.plot(range(24), ev_soc_pct_s3, label="SoC EV (S3 V2H)", color='#10B981', lw=1.5, marker='o', markersize=2)
+            
+            setup_plot_style(ax_f2, f"{T['chart_soc_title']}", T["chart_h_x"], "State of Charge [%]")
+            ax_f2.set_ylim(-5, 105)
+            ax_f2.set_xlim(-0.5, 23.5)
+            ax_f2.legend(fontsize=5.5, frameon=True, loc="lower left", bbox_to_anchor=(0.01, 0.01))
+            st.pyplot(fig_f2)
 
     # --- SEZIONE: GRAFICI ANNUALI CONTINUI A 8760 ORE ---
     st.markdown("---")
