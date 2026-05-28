@@ -223,7 +223,7 @@ def setup_plot_style(ax, title, xlabel, ylabel):
 
 def get_8760_profiles():
     pvgis_url = f"https://re.jrc.ec.europa.eu/api/v5_2/PVcalc?lat={lat}&lon={lon}&peakpower={pv_power}&angle={pv_tilt}&aspect={pv_azimuth}&loss=14&outputformat=json"
-    sol_m = [0]*12
+    sol_data = None
     try:
         sol_data = requests.get(pvgis_url, timeout=5).json()
         sol_m = [m["E_m"] * (pv_efficiency / 20) for m in sol_data["outputs"]["monthly"]["fixed"]]
@@ -306,10 +306,10 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
     total_load_with_ev_s1 = [0.0] * 8760
     ac_s1_hourly = [0.0] * 8760
     
-    # Vettori orari delle singole quote energetiche per i grafici temporali
     ev_charge_s1_hourly = [0.0] * 8760
     sell_s1_hourly = [0.0] * 8760
     grid_s1_hourly = [0.0] * 8760
+    bess_p_s1_hourly = [0.0] * 8760
 
     for i in range(8760):
         is_connected = conn_annual[i]
@@ -334,11 +334,13 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         local_ac = diretto
         surplus, deficit = prod - diretto, tot_load - diretto
         
+        bess_p = 0.0
         if surplus > 0 and battery_capacity_kwh > 0:
             ch = min(surplus * battery_eff, soc_max - soc_h_s1)
             soc_h_s1 += ch
             surplus -= (ch / battery_eff)
             local_ac += ch
+            bess_p = ch / battery_eff # Carica positiva del BESS
         sell_s1_hourly[i] = surplus
         sell_s1 += surplus
         
@@ -347,7 +349,11 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
             soc_h_s1 -= (dh / battery_eff)
             local_ac += dh
             deficit -= dh
-        grid_s1_hourly[i] = deficit
+            bess_p = -dh # Scarica negativa del BESS
+        bess_p_s1_hourly[i] = bess_p
+        
+        # Scambio di rete: deficit rimasto (prelievo > 0), o immissione surplus (immessa < 0)
+        grid_s1_hourly[i] = deficit if deficit > 0 else -surplus
         grid_s1 += deficit
         ac_s1_hourly[i] = local_ac
         ac_s1 += local_ac
@@ -362,6 +368,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
     ev_charge_s2_hourly = [0.0] * 8760
     sell_s2_hourly = [0.0] * 8760
     grid_s2_hourly = [0.0] * 8760
+    bess_p_s2_hourly = [0.0] * 8760
 
     for i in range(8760):
         is_connected = conn_annual[i]
@@ -395,11 +402,13 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
 
         ev_charge_s2_hourly[i] = ev_charge_power
 
+        bess_p = 0.0
         if surplus > 0 and battery_capacity_kwh > 0:
             ch = min(surplus * battery_eff, soc_max - soc_h_s2)
             soc_h_s2 += ch
             surplus -= (ch / battery_eff)
             local_ac += ch
+            bess_p = ch / battery_eff
         sell_s2_hourly[i] = surplus
         sell_s2 += surplus
 
@@ -408,7 +417,10 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
             soc_h_s2 -= (dh / battery_eff)
             local_ac += dh
             deficit -= dh
-        grid_s2_hourly[i] = deficit
+            bess_p = -dh
+        bess_p_s2_hourly[i] = bess_p
+        
+        grid_s2_hourly[i] = deficit if deficit > 0 else -surplus
         grid_s2 += deficit
         ac_s2_hourly[i] = local_ac
         ac_s2 += local_ac
@@ -420,9 +432,10 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
     soc_track_h_s3, soc_track_ev_s3 = [], []
     ac_s3_hourly = [0.0] * 8760
     
-    ev_charge_s3_hourly = [0.0] * 8760
+    ev_flow_s3_hourly = [0.0] * 8760  # Carica (+) e Scarica (-) dell'EV
     sell_s3_hourly = [0.0] * 8760
     grid_s3_hourly = [0.0] * 8760
+    bess_p_s3_hourly = [0.0] * 8760
 
     for i in range(8760):
         is_connected = conn_annual[i]
@@ -438,7 +451,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         surplus = prod - diretto
         deficit = house_load - diretto
 
-        ev_charge_power = 0.0
+        ev_net_flow = 0.0
         if has_ev and is_connected:
             needed_energy = ev_capacity_kwh - current_ev_soc_s3
             needed_hours = math.ceil(needed_energy / (v2h_power_kw * v2h_eff))
@@ -448,25 +461,30 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
                 ev_charge_power = min(v2h_power_kw, needed_energy / v2h_eff)
                 deficit += ev_charge_power
                 current_ev_soc_s3 += ev_charge_power * v2h_eff
+                ev_net_flow = ev_charge_power  # Carica (+)
             else:
                 if deficit > 0 and current_ev_soc_s3 > ev_soc_travel_min:
                     v2h_discharge = min(min(v2h_power_kw, deficit), (current_ev_soc_s3 - ev_soc_travel_min) * v2h_eff)
                     current_ev_soc_s3 -= (v2h_discharge / v2h_eff)
                     deficit -= v2h_discharge
                     local_ac += v2h_discharge
+                    ev_net_flow = -v2h_discharge  # Scarica (-)
                 if surplus > 0 and current_ev_soc_s3 < ev_capacity_kwh:
                     ev_charge_power = min(min(v2h_power_kw, surplus), needed_energy / v2h_eff)
                     surplus -= ev_charge_power
                     local_ac += ev_charge_power
                     current_ev_soc_s3 += ev_charge_power * v2h_eff
+                    ev_net_flow = ev_charge_power  # Carica (+)
 
-        ev_charge_s3_hourly[i] = ev_charge_power
+        ev_flow_s3_hourly[i] = ev_net_flow
 
+        bess_p = 0.0
         if surplus > 0 and battery_capacity_kwh > 0:
             ch = min(surplus * battery_eff, soc_max - soc_h_s3)
             soc_h_s3 += ch
             surplus -= (ch / battery_eff)
             local_ac += ch
+            bess_p = ch / battery_eff
         sell_s3_hourly[i] = surplus
         sell_s3 += surplus
 
@@ -475,7 +493,10 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
             soc_h_s3 -= (dh / battery_eff)
             local_ac += dh
             deficit -= dh
-        grid_s3_hourly[i] = deficit
+            bess_p = -dh
+        bess_p_s3_hourly[i] = bess_p
+        
+        grid_s3_hourly[i] = deficit if deficit > 0 else -surplus
         grid_s3 += deficit
         ac_s3_hourly[i] = local_ac
         ac_s3 += local_ac
@@ -533,13 +554,17 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         "soc_track_h_s2": soc_track_h_s2, "soc_track_ev_s2": soc_track_ev_s2,
         "soc_track_h_s3": soc_track_h_s3, "soc_track_ev_s3": soc_track_ev_s3,
         "total_load_with_ev_s1": total_load_with_ev_s1,
-        "ev_charge_s1": ev_charge_s1_hourly, "ev_charge_s2": ev_charge_s2_hourly, "ev_charge_s3": ev_charge_s3_hourly,
-        "sell_s1_h": sell_s1_hourly, "sell_s2_h": sell_s2_hourly, "sell_s3_h": sell_s3_hourly,
-        "grid_s1_h": grid_s1_hourly, "grid_s2_h": grid_s2_hourly, "grid_s3_h": grid_s3_hourly
+        "ev_charge_s1": ev_charge_s1_hourly, "ev_charge_s2": ev_charge_s2_hourly, "ev_charge_s3": ev_flow_s3_hourly,
+        "grid_s1_h": grid_s1_hourly, "grid_s2_h": grid_s2_hourly, "grid_s3_h": grid_s3_hourly,
+        "bess_p_s1": bess_p_s1_hourly, "bess_p_s2": bess_p_s2_hourly, "bess_p_s3": bess_p_s3_hourly
     }
 
 # --- RENDERING ORDINATO DELLE SEZIONI DI REPORT ---
 if st.session_state.sim_data is not None:
+    # Ripristinato il Titolo e il Sottotitolo dell'applicazione andati persi
+    st.markdown(f"<h1>{T['title']}</h1>", unsafe_allow_html=True)
+    st.markdown(f"<p style='color: #475569; font-size: 0.95rem; margin-bottom: 1.5rem;'>{T['subtitle']}</p>", unsafe_allow_html=True)
+
     sd = st.session_state.sim_data
     sim = sd["sim"]
     hours_indices = sd["hours_indices"]
@@ -671,7 +696,7 @@ if st.session_state.sim_data is not None:
         with mc1:
             c1, c2 = st.columns(2); c1.metric("Autoconsumo Effettivo", f"{sd['ac_s1']:.0f} kWh"); c2.metric("Grado di Autoconsumo", f"{sc_rate_s1:.1f} %")
             c3, c4 = st.columns(2); c3.metric("Autosufficienza Nodo", f"{ss_rate_s1:.1f} %"); c4.metric("Prelievo Totale da Rete", f"{sd['grid_s1']:.0f} kWh")
-            c5, c6 = st.columns(2); c5.metric("Energia Immessa in Rete", f"{sd['sell_s1']:.0f} kWh"); c6.metric("Fabbisogno Annuo Lordo", f"{sd['total_demand_annual']:.0f} kWh")
+            c5, c6 = st.columns(2); c5.metric("Energia Immessa in Rete", f"{sd['sell_s1']:.0f} kWh"); c6.metric("Fabbisogno Annuo Lordo", f"{sd['total_demand_annual'] Flussord} kWh")
             st.divider()
             f1, f2 = st.columns(2); f1.metric("Risparmio Economico", f"{sd['savings_s1']:.2f} €/anno"); f2.metric("Tempo di Ritorno (PBP)", f"{sd['payback_s1']:.1f} Anni")
         with mc2: plot_strategy_pies(sd['ac_s1'], sd['grid_s1'], sd['sell_s1'])
@@ -697,26 +722,24 @@ if st.session_state.sim_data is not None:
                 f1, f2 = st.columns(2); f1.metric("Risparmio Economico", f"{sd['savings_s3']:.2f} €/anno"); f2.metric("Tempo di Ritorno (PBP)", f"{sd['payback_s3']:.1f} Anni")
             with mc2: plot_strategy_pies(sd['ac_s3'], sd['grid_s3'], sd['sell_s3'])
 
-    # --- 5ª SEZIONE: ANALISI DINAMICA ORARIA INTER-GIORNALIERA (AREE SOVRAPPOSTE) ---
+    # --- 5ª SEZIONE: ANALISI DINAMICA ORARIA INTER-GIORNALIERA (AREE SOVRAPPOSTE E FLUSSI) ---
     st.markdown("---")
     st.subheader("⏱ Analisi Energetica Dinamica Oraria Intra-Giornaliera (Profili Dettagliati)")
     
-    # Selettore della strategia attiva per caricare i dati corretti di ricarica EV ed export
     st_selected = st.selectbox("Scegli lo scenario di calcolo per i diagrammi di flusso orari:", 
                                ["S1: Monodirezionale Standard", "S2: Smart Charging", "S3: Bidirectional V2H"])
     
-    # Associazione delle variabili corrette orarie in base alla strategia scelta
     if "S1" in st_selected:
         ev_hourly_data = sd["ev_charge_s1"]
-        sell_hourly_data = sd["sell_s1_h"]
+        bess_hourly_p = sd["bess_p_s1"]
         grid_hourly_data = sd["grid_s1_h"]
     elif "S2" in st_selected:
         ev_hourly_data = sd["ev_charge_s2"]
-        sell_hourly_data = sd["sell_s2_h"]
+        bess_hourly_p = sd["bess_p_s2"]
         grid_hourly_data = sd["grid_s2_h"]
     else:
         ev_hourly_data = sd["ev_charge_s3"]
-        sell_hourly_data = sd["sell_s3_h"]
+        bess_hourly_p = sd["bess_p_s3"]
         grid_hourly_data = sd["grid_s3_h"]
 
     season_tabs = st.tabs([f"❄️ {T['inv']}", f"🌱 {T['pri']}", f"☀️ {T['est']}", f"🍂 {T['aut']}"])
@@ -730,125 +753,115 @@ if st.session_state.sim_data is not None:
     for tab_obj, season_name in season_mapping:
         idx_list = hours_indices[season_name]
         with tab_obj:
-            col_chart1, col_chart2 = st.columns(2)
+            c_l1, c_l2, c_l3 = st.columns(3)
             
-            # Scorporo orario delle componenti per la giornata selezionata
             h_range = np.arange(24)
             base_s = [sim["base"][idx] for idx in idx_list]
-            ev_s = [ev_hourly_data[idx] for idx in idx_list]
             heat_s = [sim["heating"][idx] for idx in idx_list]
             cool_s = [sim["cooling"][idx] for idx in idx_list]
-            sell_s = [sell_hourly_data[idx] for idx in idx_list]
             
             pv_s = [sim["pv"][idx] for idx in idx_list]
             wind_s = [sim["wt"][idx] for idx in idx_list]
+            
+            ev_s = [ev_hourly_data[idx] for idx in idx_list]
+            bess_s = [bess_hourly_p[idx] for idx in idx_list]
             grid_s = [grid_hourly_data[idx] for idx in idx_list]
             temp_s = [sim["temp"][idx] for idx in idx_list]
 
-            with col_chart1:
-                # Grafico 1: Stacked Area per i Fabbisogni & Uscite
-                fig_f1, ax_f1 = plt.subplots(figsize=(6, 2.6), dpi=200)
-                ax_f1.stackplot(h_range, base_s, ev_s, heat_s, cool_s, sell_s,
-                                labels=["Carico Base", "Ricarica EV", "Riscaldamento", "Climatizzazione (AC)", "Ceduta a Rete"],
-                                colors=["#64748B", "#E11D48", "#DC2626", "#0284C7", "#10B981"], alpha=0.75)
+            with c_l1:
+                # Grafico 1: Fabbisogni puri ed interni dell'edificio
+                fig_f1, ax_f1 = plt.subplots(figsize=(5, 2.6), dpi=200)
+                ax_f1.stackplot(h_range, base_s, heat_s, cool_s,
+                                labels=["Carico Base", "Riscaldamento", "Climatizzazione (AC)"],
+                                colors=["#64748B", "#DC2626", "#0284C7"], alpha=0.75)
                 
-                # Asse secondario per la Temperatura
                 ax_meteo = ax_f1.twinx()
-                ax_meteo.plot(h_range, temp_s, label="Temperatura Esterna", color="#F59E0B", lw=1.2, linestyle=":")
-                
-                setup_plot_style(ax_f1, "Diagramma dei Fabbisogni ed Uscite Energetiche", T["chart_h_x"], "Potenza [kW]")
+                ax_meteo.plot(h_range, temp_s, label="Temperatura Esterna", color="#F59E0B", lw=1.0, linestyle=":")
+                setup_plot_style(ax_f1, "Fabbisogni Domestici Interni", T["chart_h_x"], "Potenza [kW]")
                 
                 lines_f1, labels_f1 = ax_f1.get_legend_handles_labels()
                 lines_meteo, labels_meteo = ax_meteo.get_legend_handles_labels()
                 ax_f1.legend(lines_f1 + lines_meteo, labels_f1 + labels_meteo, fontsize=5.8, loc="upper left", frameon=False)
                 st.pyplot(fig_f1)
                 
-            with col_chart2:
-                # Grafico 2: Stacked Area per la Generazione & Fonti
-                fig_f2, ax_f2 = plt.subplots(figsize=(6, 2.6), dpi=200)
-                ax_f2.stackplot(h_range, pv_s, wind_s, grid_s,
-                                labels=["Produzione FV", "Produzione Eolico", "Integrata da Rete"],
-                                colors=["#F59E0B", "#2563EB", "#EF4444"], alpha=0.75)
-                
-                setup_plot_style(ax_f2, "Diagramma della Generazione e Copertura Fonti", T["chart_h_x"], "Potenza [kW]")
+            with c_l2:
+                # Grafico 2: Produzioni rinnovabili locali pure
+                fig_f2, ax_f2 = plt.subplots(figsize=(5, 2.6), dpi=200)
+                ax_f2.stackplot(h_range, pv_s, wind_s,
+                                labels=["Produzione FV", "Produzione Eolico"],
+                                colors=["#F59E0B", "#2563EB"], alpha=0.75)
+                setup_plot_style(ax_f2, "Produzioni Rinnovabili Locali", T["chart_h_x"], "Potenza [kW]")
                 ax_f2.legend(fontsize=5.8, loc="upper left", frameon=False)
                 st.pyplot(fig_f2)
-
-            # Visualizzazione rapida dello Stato di Carica sotto i bilanci energetici flussi
-            if has_ev:
-                st.markdown("<small>**Andamento dello Stato di Carica (SoC) degli Accumuli nello scenario selezionato**</small>", unsafe_allow_html=True)
-                fig_soc_scen, ax_soc_scen = plt.subplots(figsize=(12, 1.1), dpi=200)
-                for h in range(24):
-                    if ev_hours_status[h]: ax_soc_scen.axvspan(h-0.5, h+0.5, color='#E0F2FE', alpha=0.3, lw=0)
                 
-                if "S1" in st_selected:
-                    h_soc_p = [(sd["soc_track_h_s1"][idx] / battery_capacity_kwh * 100) if battery_capacity_kwh > 0 else 0 for idx in idx_list]
-                    ev_soc_p = [(sd["soc_track_ev_s1"][idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
-                    c_h, c_ev = '#D97706', '#EF4444'
-                elif "S2" in st_selected:
-                    h_soc_p = [(sd["soc_track_h_s2"][idx] / battery_capacity_kwh * 100) if battery_capacity_kwh > 0 else 0 for idx in idx_list]
-                    ev_soc_p = [(sd["soc_track_ev_s2"][idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
-                    c_h, c_ev = '#B45309', '#3B82F6'
-                else:
-                    h_soc_p = [(sd["soc_track_h_s3"][idx] / battery_capacity_kwh * 100) if battery_capacity_kwh > 0 else 0 for idx in idx_list]
-                    ev_soc_p = [(sd["soc_track_ev_s3"][idx] / ev_capacity_kwh * 100) if ev_capacity_kwh > 0 else 0 for idx in idx_list]
-                    c_h, c_ev = '#78350F', '#10B981'
-                
-                ax_soc_scen.plot(range(24), h_soc_p, label="SoC Accumulo Casa (BESS)", color=c_h, lw=1.2)
-                ax_soc_scen.plot(range(24), ev_soc_p, label="SoC Batteria EV (Veicolo)", color=c_ev, lw=1.2, marker='o', markersize=1.5)
-                setup_plot_style(ax_soc_scen, "", T["chart_h_x"], "SoC [%]")
-                ax_soc_scen.set_ylim(-5, 105)
-                ax_soc_scen.legend(fontsize=6, loc="lower left", frameon=False, ncol=2)
-                st.pyplot(fig_soc_scen)
+            with c_l3:
+                # Grafico 3: Curve dei Flussi di Bilanciamento (Line Chart)
+                fig_f3, ax_f3 = plt.subplots(figsize=(5, 2.6), dpi=200)
+                ax_f3.plot(h_range, ev_s, label="Flusso BESS EV", color="#E11D48", lw=1.2)
+                ax_f3.plot(h_range, bess_s, label="Flusso BESS Locale", color="#D97706", lw=1.2)
+                ax_f3.plot(h_range, grid_s, label="Scambio Rete (Grid)", color="#475569", lw=1.2, linestyle="-.")
+                ax_f3.axhline(0, color="#CBD5E1", lw=0.8, linestyle="--")
+                setup_plot_style(ax_f3, "Flussi di Bilanciamento e Scambio", T["chart_h_x"], "Potenza [kW]")
+                ax_f3.legend(fontsize=5.5, loc="upper left", frameon=False)
+                st.pyplot(fig_f3)
 
-    # --- 6ª SEZIONE: PARTE INTERATTIVA CONTINUA ANNUALIZZATA (8760 ORE - AREE SOVRAPPOSTE) ---
+    # --- 6ª SEZIONE: PARTE INTERATTIVA CONTINUA ANNUALIZZATA (8760 ORE - AREE SOVRAPPOSTE E FLUSSI) ---
     st.markdown("---")
     st.subheader(T["guide_8760_charts_title"])
     start_hour, end_hour = st.slider("Seleziona la finestra oraria da analizzare (Zoom asse orario condiviso)", min_value=1, max_value=8760, value=(1, 8760), step=1)
     s_idx, e_idx = start_hour - 1, end_hour
     t_range = range(start_hour, end_hour + 1) if (end_hour - start_hour) > 0 else [start_hour]
     
-    col_ann1, col_ann2 = st.columns(2)
+    c_an1, c_an2, c_an3 = st.columns(3)
     
-    # Estrazione continua delle serie temporali per lo zoom annuale impostato
     base_ann = sim["base"][s_idx:e_idx]
-    ev_ann = ev_hourly_data[s_idx:e_idx]
     heat_ann = sim["heating"][s_idx:e_idx]
     cool_ann = sim["cooling"][s_idx:e_idx]
-    sell_ann = sell_hourly_data[s_idx:e_idx]
     
     pv_ann = sim["pv"][s_idx:e_idx]
     wind_ann = sim["wt"][s_idx:e_idx]
+    
+    ev_ann = ev_hourly_data[s_idx:e_idx]
+    bess_ann = bess_hourly_p[s_idx:e_idx]
     grid_ann = grid_hourly_data[s_idx:e_idx]
     temp_ann = sim["temp"][s_idx:e_idx]
 
-    with col_ann1:
-        # Grafico 1 Annuale: Stacked Area per i Fabbisogni & Uscite
-        fig_ann_flows, ax_ann_flows = plt.subplots(figsize=(6, 2.5), dpi=200)
-        ax_ann_flows.stackplot(t_range, base_ann, ev_ann, heat_ann, cool_ann, sell_ann,
-                               labels=["Carico Base", "Ricarica EV", "Riscaldamento", "Climatizzazione (AC)", "Ceduta a Rete"],
-                               colors=["#64748B", "#E11D48", "#DC2626", "#0284C7", "#10B981"], alpha=0.75)
+    with c_an1:
+        # Grafico 1 Continuo: Fabbisogni domestici interni
+        fig_ann_flows, ax_ann_flows = plt.subplots(figsize=(5, 2.5), dpi=200)
+        ax_ann_flows.stackplot(t_range, base_ann, heat_ann, cool_ann,
+                               labels=["Carico Base", "Riscaldamento", "Climatizzazione (AC)"],
+                               colors=["#64748B", "#DC2626", "#0284C7"], alpha=0.75)
         
         ax_ann_temp = ax_ann_flows.twinx()
         ax_ann_temp.plot(t_range, temp_ann, color="#F59E0B", lw=0.4, linestyle=":", label="Temperatura Esterna")
-        
-        setup_plot_style(ax_ann_flows, "Diagramma dei Fabbisogni ed Uscite nel Continuo", "Ore dell'Anno", "Potenza [kW]")
+        setup_plot_style(ax_ann_flows, "Fabbisogni Domestici nel Continuo", "Ore dell'Anno", "Potenza [kW]")
         
         lines_ann, labels_ann = ax_ann_flows.get_legend_handles_labels()
         lines_ann_temp, labels_ann_temp = ax_ann_temp.get_legend_handles_labels()
         ax_ann_flows.legend(lines_ann + lines_ann_temp, labels_ann + labels_ann_temp, fontsize=5.8, loc="upper right", frameon=False)
         st.pyplot(fig_ann_flows)
         
-    with col_ann2:
-        # Grafico 2 Annuale: Stacked Area per la Generazione & Fonti
-        fig_ann_gen, ax_ann_gen = plt.subplots(figsize=(6, 2.5), dpi=200)
-        ax_ann_gen.stackplot(t_range, pv_ann, wind_ann, grid_ann,
-                               labels=["Produzione FV", "Produzione Eolico", "Integrata da Rete"],
-                               colors=["#F59E0B", "#2563EB", "#EF4444"], alpha=0.75)
-        
-        setup_plot_style(ax_ann_gen, "Diagramma della Generazione e Copertura Fonti nel Continuo", "Ore dell'Anno", "Potenza [kW]")
+    with c_an2:
+        # Grafico 2 Continuo: Produzioni rinnovabili locali pure
+        fig_ann_gen, ax_ann_gen = plt.subplots(figsize=(5, 2.5), dpi=200)
+        ax_ann_gen.stackplot(t_range, pv_ann, wind_ann,
+                               labels=["Produzione FV", "Produzione Eolico"],
+                               colors=["#F59E0B", "#2563EB"], alpha=0.75)
+        setup_plot_style(ax_ann_gen, "Produzioni Rinnovabili nel Continuo", "Ore dell'Anno", "Potenza [kW]")
         ax_ann_gen.legend(fontsize=5.8, loc="upper right", frameon=False)
         st.pyplot(fig_ann_gen)
+        
+    with c_an3:
+        # Grafico 3 Continuo: Curve dei flussi di bilanciamento continui (Line Chart)
+        fig_ann_fl, ax_ann_fl = plt.subplots(figsize=(5, 2.5), dpi=200)
+        ax_ann_fl.plot(t_range, ev_ann, label="Flusso BESS EV", color="#E11D48", lw=0.5)
+        ax_ann_fl.plot(t_range, bess_ann, label="Flusso BESS Locale", color="#D97706", lw=0.5)
+        ax_ann_fl.plot(t_range, grid_ann, label="Scambio Rete (Grid)", color="#475569", lw=0.5, linestyle="-.")
+        ax_ann_fl.axhline(0, color="#CBD5E1", lw=0.6, linestyle="--")
+        setup_plot_style(ax_ann_fl, "Flussi di Bilanciamento nel Continuo", "Ore dell'Anno", "Potenza [kW]")
+        ax_ann_fl.legend(fontsize=5.5, loc="upper right", frameon=False)
+        st.pyplot(fig_ann_fl)
 
 st.markdown("---")
 st.caption("RES-EV Microgrid Core Platform | 8760-Hour Chronological Solver | Engine: PVGIS API & Open-Meteo Weather Dataset")
