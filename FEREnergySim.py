@@ -325,8 +325,8 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
         prod = sim["fer"][i]
         
         diretto = min(prod, tot_load)
-        local_ac = diretto
-        surplus, deficit = prod - diretto, tot_load - diretto
+        local_ac = directo
+        surplus, deficit = prod - directo, tot_load - directo
         
         if surplus > 0 and battery_capacity_kwh > 0:
             ch = min(surplus * battery_eff, soc_max - soc_h_s1)
@@ -361,9 +361,9 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
 
         prod, house_load = sim["fer"][i], sim["load"][i]
         diretto = min(prod, house_load)
-        local_ac = diretto
-        surplus = prod - diretto
-        deficit = house_load - diretto
+        local_ac = directo
+        surplus = prod - directo
+        deficit = house_load - directo
 
         ev_charge_power = 0.0
         if has_ev and is_connected and current_ev_soc_s2 < ev_capacity_kwh:
@@ -414,9 +414,9 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
 
         prod, house_load = sim["fer"][i], sim["load"][i]
         diretto = min(prod, house_load)
-        local_ac = diretto
-        surplus = prod - diretto
-        deficit = house_load - diretto
+        local_ac = directo
+        surplus = prod - directo
+        deficit = house_load - directo
 
         if has_ev and is_connected:
             needed_energy = ev_capacity_kwh - current_ev_soc_s3
@@ -673,7 +673,6 @@ if st.session_state.sim_data is not None:
     st.markdown("---")
     st.subheader("⏱ Analisi Energetica Dinamica Oraria Intra-Giornaliera")
     
-    # Creazione dei 4 Tab per organizzare i giorni delle stagioni
     season_tabs = st.tabs([f"❄️ {T['inv']}", f"🌱 {T['pri']}", f"☀️ {T['est']}", f"🍂 {T['aut']}"])
     season_mapping = [
         (season_tabs[0], T["inv"]),
@@ -688,11 +687,19 @@ if st.session_state.sim_data is not None:
             col_chart1, col_chart2 = st.columns(2)
             with col_chart1:
                 fig_f1, ax_f1 = plt.subplots(figsize=(6, 2.5), dpi=200)
-                ax_f1.plot(range(24), [sim["fer"][idx] for idx in idx_list], label="FER", color="#059669", lw=1.5)
-                ax_f1.plot(range(24), [sim["load"][idx] for idx in idx_list], label="Carico", color="#475569", lw=1.2, linestyle="--")
+                ax_f1.plot(range(24), [sim["fer"][idx] for idx in idx_list], label="Generazione FER", color="#059669", lw=1.5)
+                ax_f1.plot(range(24), [sim["load"][idx] for idx in idx_list], label="Carico Domestico", color="#475569", lw=1.2, linestyle="--")
                 ax_meteo = ax_f1.twinx()
-                ax_meteo.plot(range(24), [sim["temp"][idx] for idx in idx_list], color="#F59E0B", lw=1, linestyle=":")
+                ax_meteo.plot(range(24), [sim["temp"][idx] for idx in idx_list], label="Temperatura Esterna", color="#F59E0B", lw=1, linestyle=":")
+                
                 setup_plot_style(ax_f1, f"{T['chart_hourly_title']}", T["chart_h_x"], "kW")
+                
+                # --- INTRODUZIONE DELLA LEGENDA COMPLETA ---
+                # Uniamo i vettori grafici di ax_f1 e ax_meteo per generare un'unica legenda ordinata ed elegante
+                lines_f1, labels_f1 = ax_f1.get_legend_handles_labels()
+                lines_meteo, labels_meteo = ax_meteo.get_legend_handles_labels()
+                ax_f1.legend(lines_f1 + lines_meteo, labels_f1 + labels_meteo, fontsize=6.5, loc="upper right", frameon=False)
+                
                 st.pyplot(fig_f1)
                 
             with col_chart2:
