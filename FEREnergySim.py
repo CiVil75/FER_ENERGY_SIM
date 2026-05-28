@@ -276,6 +276,7 @@ LANG_DICT = {
         "legend_soc_h": "Home BESS SoC", "legend_grid_on": "Vehicle Connected",
         "legend_ac_power": "Cooling Power Demand",
         "legend_ev_conn": "EV Connected to Wallbox",
+        "energy_balance_title": "Advanced Energy Balance",
         "final_chart_title": "📊 Comparative Analysis of Self-Consumption Strategies over the Year",
         "final_chart_sub": "Energy Coverage and Effective Monthly Self-Consumption across Simulation Scenarios",
         "final_x": "Month of the Year", "final_l1": "Gross Load", "final_l2": "S1: Standard Monodirectional", "final_l3": "S2: Smart Charging", "final_l4": "S3: Bidirectional V2H/V2L",
@@ -817,6 +818,59 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
             setup_plot_style(ax_f1, f"{T['chart_hourly_title']}", T["chart_h_x"], "Potenza [kW]")
             ax_f1.legend(fontsize=6.5, frameon=False, loc="upper left")
             st.pyplot(fig_f1)
+
+            # =========================================
+            # WEATHER DETAIL CHART
+            # =========================================
+
+            fig_weather, ax_weather_day = plt.subplots(
+                figsize=(6, 2.0),
+                dpi=200
+            )
+
+            temp_profile = [
+                temp_2m[idx]
+                for idx in idx_list
+            ]
+
+            ax_weather_day.plot(
+                range(24),
+                temp_profile,
+                color="#DC2626",
+                lw=1.8,
+                label="Temperatura Esterna [°C]"
+            )
+
+            ax_weather_day.fill_between(
+                range(24),
+                temp_profile,
+                alpha=0.15,
+                color="#F87171"
+            )
+
+            ax_weather_day.axhline(
+                23,
+                color="#0EA5E9",
+                linestyle="--",
+                lw=1.0,
+                label="Soglia Attivazione AC"
+            )
+
+            setup_plot_style(
+                ax_weather_day,
+                "Profilo Meteo Utilizzato nel Calcolo HVAC",
+                T["chart_h_x"],
+                "Temperatura [°C]"
+            )
+
+            ax_weather_day.legend(
+                fontsize=6.5,
+                frameon=False,
+                loc="upper left"
+            )
+
+            st.pyplot(fig_weather)
+
             
         with col_chart2:
             fig_f2, ax_f2 = plt.subplots(figsize=(6, 2.3), dpi=200)
