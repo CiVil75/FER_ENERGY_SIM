@@ -1,5 +1,0 @@
-[client]
-toolbarMode = "viewer" # Nasconde il pulsante per modificare l'app e riduce il menu
-
-[browser]
-gatherUsageStats = false # Opzionale: disabilita le statistiche di utilizzo
