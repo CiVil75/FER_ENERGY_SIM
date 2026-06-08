@@ -1,3 +1,30 @@
+import streamlit as st
+
+# INSERISCI QUESTO BLOCCO CSS IN CIMA A TUTTO IL VERO CODICE
+st.markdown("""
+    <style>
+    /* Nasconde completamente la barra laterale di navigazione tra le pagine */
+    [data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"] {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    /* Rimuove l'intero header superiore (incluso il pulsante dei file e i tre puntini) */
+    header, [data-testid="stHeader"] {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    /* Rimuove il footer in basso */
+    footer {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    /* Sistema il margine superiore per non lasciare uno spazio vuoto dopo aver rimosso l'header */
+    .block-container {
+        padding-top: 1rem !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 # FEREnergySim.py
 import streamlit as st
 import requests
