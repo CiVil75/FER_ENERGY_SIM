@@ -226,33 +226,74 @@ else:
     daily_ev_demand_kwh, ev_capacity_kwh = 0, 0
     capex_ev_s1, capex_ev_s2, capex_ev_s3 = 0, 0, 0
 
-# --- LOCALIZZAZIONE GIS RESILIENTE ---
+# --- LOCALIZZAZIONE GIS RESILIENTE (OTTIMIZZATA OPENCAGE) ---
 st.markdown(f"### {T['gis_title']}")
+
+# Inizializzazione dello stato dello zoom per evitare continui reset grafici
+if "zoom_level" not in st.session_state:
+    st.session_state.zoom_level = 6
+
+def cerca_luogo_opencage(stringa_ricerca):
+    if not stringa_ricerca:
+        return None
+        
+    # INSERISCI QUI LA TUA CHIAVE OTTENUTA DA OPENCAGE
+    API_KEY = "0c447d882a8f4d8ebd53785cf17cd17b" 
+    
+    url = f"https://api.opencagedata.com/geocode/v1/json?q={requests.utils.quote(stringa_ricerca)}&key={API_KEY}&limit=1&language=it&no_annotations=1"
+    
+    try:
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            if data and data.get("results"):
+                primo_risultato = data["results"][0]
+                geometry = primo_risultato["geometry"]
+                return {
+                    "lat": float(geometry["lat"]),
+                    "lon": float(geometry["lng"]),
+                    "display_name": primo_risultato["formatted"]
+                }
+    except Exception as e:
+        st.error(f"Errore di connessione al servizio OpenCage: {e}")
+    return None
+
 col_loc1, col_loc2 = st.columns([1, 3])
+
 with col_loc1:
     location_query = st.text_input(T["gis_search"], value="L'Aquila, Italia")
+    
     if st.button(T["gis_btn"], use_container_width=True):
-        headers = {"User-Agent": "FEREnergySim_v2_AcademicApplication/1.1 (prof.villante.simulation@univaq.it)"}
-        geo_url = f"https://nominatim.openstreetmap.org/search?q={requests.utils.quote(location_query)}&format=json&limit=1"
-        try:
-            res = requests.get(headers=headers, url=geo_url, timeout=5)
-            data = res.json()
-            if data and len(data) > 0: 
-                st.session_state.lat = float(data[0]["lat"])
-                st.session_state.lon = float(data[0]["lon"])
-                st.rerun()
-        except:
+        risultato = cerca_luogo_opencage(location_query)
+        
+        if risultato:
+            st.session_state.lat = risultato["lat"]
+            st.session_state.lon = risultato["lon"]
+            st.session_state.zoom_level = 13  # Zoom ravvicinato sul comune trovato
+            st.success(f"Località trovata!")
+            st.rerun()
+        else:
+            # Fallback locale se OpenCage non trova la stringa o siamo offline
             fallback_db = {"l'aquila": (42.3498, 13.3995), "roma": (41.9028, 12.4964), "milano": (45.4642, 9.1900)}
             q_clean = location_query.lower().split(",")[0].strip()
             if q_clean in fallback_db:
                 st.session_state.lat, st.session_state.lon = fallback_db[q_clean]
+                st.session_state.zoom_level = 12
                 st.rerun()
+            else:
+                st.warning("Località non trovata. Controlla la sintassi.")
             
     lat, lon = st.session_state.lat, st.session_state.lon
     st.info(f"{T['gis_active']}\nLat: {lat:.4f}°\nLon: {lon:.4f}°")
 
 with col_loc2:
-    m = folium.Map(location=[st.session_state.lat, st.session_state.lon], zoom_start=6, tiles="CartoDB positron")
+    # Creazione della mappa centrata sulle coordinate stabili in session_state
+    m = folium.Map(
+        location=[st.session_state.lat, st.session_state.lon], 
+        zoom_start=st.session_state.zoom_level, 
+        tiles="CartoDB positron"
+    )
+    
     folium.CircleMarker(
         location=[st.session_state.lat, st.session_state.lon],
         radius=8,
@@ -260,9 +301,16 @@ with col_loc2:
         fill=True,
         fill_color="#EF4444",
         fill_opacity=0.9,
-        popup="Sito Selezionato"
+        popup=f"Sito Selezionato\nLat: {st.session_state.lat:.4f}\nLon: {st.session_state.lon:.4f}"
     ).add_to(m)
-    map_data = st_folium(m, width="100%", height=150, key=f"map_widget_{st.session_state.lat}_{st.session_state.lon}")
+    
+    # Ridisegna la mappa usando le coordinate correnti nell'ID della chiave per forzare l'aggiornamento grafico
+    map_data = st_folium(
+        m, 
+        width="100%", 
+        height=220,  # Leggermente più alta per una visualizzazione migliore in aula/laboratorio
+        key=f"map_widget_{st.session_state.lat}_{st.session_state.lon}"
+    )
 
 def setup_plot_style(ax, title, xlabel, ylabel):
     ax.set_title(title, fontsize=9, fontweight='600', color='#0F172A', loc='left', pad=8)
