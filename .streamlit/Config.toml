@@ -1,3 +1,6 @@
 Ini, TOML
 [client]
 toolbarMode = "viewer"
+
+[ui]
+hideSidebarNav = true
