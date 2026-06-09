@@ -180,7 +180,7 @@ with exp_batt.expander(T["batt_title"], expanded=False):
     soc_max = battery_capacity_kwh
 
 with exp_load.expander(T["load_title"], expanded=False):
-    house_area = st.number_input(T["load_area"], min_value=40, max_value=300, value=120, step=10)
+    house_area = st.number_input(T["load_area"], min_value=40, max_value=300, value=130, step=10)
     building_class = st.selectbox(T["load_class"], ["A4", "A3", "A2", "A1", "B", "C", "D"], index=4)
     occupants = st.number_input(T["load_occ"], min_value=1, max_value=8, value=4, step=1)
     heat_pump_cop = st.number_input(T["load_cop"], min_value=2.0, max_value=5.0, value=3.6, step=0.1, format="%.1f")
