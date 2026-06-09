@@ -87,6 +87,7 @@ LANG_DICT = {
         "load_title": "🏠 Profilo Utenza & Edificio", "load_area": "Superficie Calpestabile (m²)", "load_class": "Classe Energetica", "load_occ": "Numero Occupanti", "load_cop": "COP/EER Medio Pompa Calore",
         "load_ev_check": "Abilita Veicolo Elettrico (EV)",
         "eco_title": "💰 Parametri Economici & Tariffe Grid", "eco_cost": "Costo Energia Prelevata (€/kWh)", "eco_sell": "Tariffa Immissione / RID (€/kWh)", "eco_capex": "CAPEX Impianto Base (PV+Wind) (€)",
+        "eco_capex_PV": "CAPEX FV (€/kW)","eco_capex_WIND": "CAPEX Eolico (€/kW)","eco_capex_BESS": "CAPEX Batterie (€/kWh)",
         "ev_section_title": "🚗 Configurazione Connessione & Infrastruttura di Ricarica EV (Algoritmo Predittivo orario)",
         "ev_help": "💡 Convenzione Oraria: Il veicolo si intende connesso alla Wallbox a partire dal primo minuto dell'ora di inizio indicata, fino all'ultimo minuto dell'ora di fine.",
         "ev_cap": "Capacità Batteria EV (kWh)", "ev_km": "Distanza Giornaliera (km)", "ev_whkm": "Consumo Specifico (Wh/km)",
@@ -114,6 +115,7 @@ LANG_DICT = {
         "load_title": "🏠 Load Profile & Building", "load_area": "Floor Area (m²)", "load_class": "Energy Class", "load_occ": "Number of Occupants", "load_cop": "Heat Pump Average COP/EER",
         "load_ev_check": "Enable Electric Vehicle (EV)",
         "eco_title": "💰 Economic Parameters & Grid Tariffs", "eco_cost": "Cost of Imported Energy (€/kWh)", "eco_sell": "Export Tariff / RID (€/kWh)", "eco_capex": "Base System CAPEX (PV+Wind) (€)",
+        "eco_capex_PV": "CAPEX PV (€/kW)","eco_capex_WIND": "CAPEX Wind (€/kW)","eco_capex_BESS": "CAPEX BESS (€/kWh)",
         "ev_section_title": "🚗 EV Connection & Charging Infrastructure Configuration (Predictive Hourly Algorithm)",
         "ev_help": "💡 Hourly Convention: The vehicle is considered connected to the Wallbox starting from the first minute of the start hour indicated, up to the last minute of the end hour.",
         "ev_cap": "EV Battery Capacity (kWh)", "ev_km": "Daily Distance (km)", "ev_whkm": "Specific Consumption (Wh/km)",
@@ -161,24 +163,24 @@ st.markdown(f"## {T['params_title']}")
 exp_pv, exp_wind, exp_batt, exp_load, exp_eco = st.columns(5)
 
 with exp_pv.expander(T["pv_title"], expanded=False):
-    pv_power = st.number_input(T["pv_p"], min_value=1, max_value=20, value=6, step=1)
+    pv_power = st.number_input(T["pv_p"], min_value=1, max_value=20, value=5, step=1)
     pv_tilt = st.number_input(T["pv_t"], min_value=0, max_value=90, value=35, step=5)
     pv_azimuth = st.number_input(T["pv_az"], min_value=-180, max_value=180, value=0, step=5)
     pv_efficiency = st.number_input(T["pv_eff"], min_value=10, max_value=30, value=20, step=1)
 
 with exp_wind.expander(T["wind_title"], expanded=False):
-    wind_power_kw = st.number_input(T["wind_p"], min_value=1, max_value=20, value=3, step=1)
+    wind_power_kw = st.number_input(T["wind_p"], min_value=1, max_value=20, value=2, step=1)
     hub_height = st.number_input(T["wind_h"], min_value=10, max_value=200, value=25, step=5)
 
 with exp_batt.expander(T["batt_title"], expanded=False):
-    battery_capacity_kwh = st.number_input(T["batt_c"], min_value=0, max_value=100, value=15, step=1)
+    battery_capacity_kwh = st.number_input(T["batt_c"], min_value=0, max_value=100, value=20, step=1)
     battery_eff = st.number_input(T["batt_eff"], min_value=70, max_value=100, value=92, step=1) / 100.0
     dod_limit = st.number_input(T["batt_dod"], min_value=50, max_value=100, value=80, step=5)
     soc_min = battery_capacity_kwh * (1 - (dod_limit / 100.0))
     soc_max = battery_capacity_kwh
 
 with exp_load.expander(T["load_title"], expanded=False):
-    house_area = st.number_input(T["load_area"], min_value=40, max_value=300, value=130, step=10)
+    house_area = st.number_input(T["load_area"], min_value=40, max_value=300, value=120, step=10)
     building_class = st.selectbox(T["load_class"], ["A4", "A3", "A2", "A1", "B", "C", "D"], index=4)
     occupants = st.number_input(T["load_occ"], min_value=1, max_value=8, value=4, step=1)
     heat_pump_cop = st.number_input(T["load_cop"], min_value=2.0, max_value=5.0, value=3.6, step=0.1, format="%.1f")
@@ -187,7 +189,9 @@ with exp_load.expander(T["load_title"], expanded=False):
 with exp_eco.expander(T["eco_title"], expanded=False):
     cost_electricity = st.number_input(T["eco_cost"], min_value=0.01, max_value=2.00, value=0.30, step=0.01, format="%.2f")
     val_injection = st.number_input(T["eco_sell"], min_value=0.00, max_value=2.00, value=0.09, step=0.01, format="%.2f")
-    capex_base = st.number_input(T["eco_capex"], min_value=1000, max_value=100000, value=11000, step=500)
+    capex_pv = st.number_input(T["eco_capex_PV"], min_value=100, max_value=2000, value=500, step=50)
+    capex_wind = st.number_input(T["eco_capex_WIND"], min_value=100, max_value=2000, value=1000, step=50)
+    capex_bess = st.number_input(T["eco_capex_BESS"], min_value=10, max_value=200, value=800, step=5)
 
 # INTERFACCIA DI CONNESSIONE EV
 ev_hours_status = [False] * 24
@@ -625,6 +629,7 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
             monthly_ac_s3_agg[m] = sum(ac_s3_hourly[c_idx : c_idx + h_count])
         c_idx += h_count
 
+    capex_base = pv_power * capex_pv + wind_power_kw * capex_wind + battery_capacity_kWh * caepx_bess
     savings_s1 = (ac_s1 * cost_electricity) + (sell_s1 * val_injection)
     capex_s1_tot = capex_base + capex_ev_s1
     payback_s1 = capex_s1_tot / savings_s1 if savings_s1 > 0 else 99
