@@ -808,6 +808,7 @@ if st.session_state.sim_data is not None:
             c3, c4 = st.columns(2); c3.metric("Autosufficienza Nodo" if lang=="ITA" else "Self-Sufficiency Degree", f"{ss_rate_s1:.1f} %"); c4.metric("Prelievo Totale da Rete" if lang=="ITA" else "Total Grid Import", f"{sd['grid_s1']:.0f} kWh")
             c5, c6 = st.columns(2); c5.metric("Energia Immessa in Rete" if lang=="ITA" else "Total Grid Export", f"{sd['sell_s1']:.0f} kWh"); c6.metric("Fabbisogno Annuo Lordo" if lang=="ITA" else "Gross Annual Load", f"{sd['total_demand_annual']:.0f} kWh")
             st.divider()
+            f0 = st.columns(1); f0.metric("CAPEX", f"{sd['capex_base']:.2f} €");
             f1, f2 = st.columns(2); f1.metric("Risparmio Economico" if lang=="ITA" else "Financial Savings", f"{sd['savings_s1']:.2f} €/anno"); f2.metric("Tempo di Ritorno (PBP)" if lang=="ITA" else "Simple Payback Period", f"{sd['payback_s1']:.1f} Anni" if lang=="ITA" else f"{sd['payback_s1']:.1f} Years")
         with mc2: plot_strategy_pies(sd['ac_s1'], sd['grid_s1'], sd['sell_s1'])
     
@@ -819,6 +820,8 @@ if st.session_state.sim_data is not None:
                 c3, c4 = st.columns(2); c3.metric("Autosufficienza Nodo" if lang=="ITA" else "Self-Sufficiency Degree", f"{ss_rate_s2:.1f} %"); c4.metric("Prelievo Totale da Rete" if lang=="ITA" else "Total Grid Import", f"{sd['grid_s2']:.0f} kWh")
                 c5, c6 = st.columns(2); c5.metric("Energia Immessa in Rete" if lang=="ITA" else "Total Grid Export", f"{sd['sell_s2']:.0f} kWh"); c6.metric("Fabbisogno Annuo Lordo" if lang=="ITA" else "Gross Annual Load", f"{sd['total_demand_annual']:.0f} kWh")
                 st.divider()
+                f0 = st.columns(1);
+                f0.metric("CAPEX", f"{sd['capex_s2_tot']:.2f} €");
                 f1, f2 = st.columns(2); f1.metric("Risparmio Economico" if lang=="ITA" else "Financial Savings", f"{sd['savings_s2']:.2f} €/anno"); f2.metric("Tempo di Ritorno (PBP)" if lang=="ITA" else "Simple Payback Period", f"{sd['payback_s2']:.1f} Anni" if lang=="ITA" else f"{sd['payback_s2']:.1f} Years")
             with mc2: plot_strategy_pies(sd['ac_s2'], sd['grid_s2'], sd['sell_s2'])
                 
@@ -829,6 +832,7 @@ if st.session_state.sim_data is not None:
                 c3, c4 = st.columns(2); c3.metric("Autosufficienza Nodo" if lang=="ITA" else "Self-Sufficiency Degree", f"{ss_rate_s3:.1f} %"); c4.metric("Prelievo Totale da Rete" if lang=="ITA" else "Total Grid Import", f"{sd['grid_s3']:.0f} kWh")
                 c5, c6 = st.columns(2); c5.metric("Energia Immessa in Rete" if lang=="ITA" else "Total Grid Export", f"{sd['sell_s3']:.0f} kWh"); c6.metric("Fabbisogno Annuo Lordo" if lang=="ITA" else "Gross Annual Load", f"{sd['total_demand_annual']:.0f} kWh")
                 st.divider()
+                f0.metric("CAPEX", f"{sd['capex_s3_tot']:.2f} €");
                 f1, f2 = st.columns(2); f1.metric("Risparmio Economico" if lang=="ITA" else "Financial Savings", f"{sd['savings_s3']:.2f} €/anno"); f2.metric("Tempo di Ritorno (PBP)" if lang=="ITA" else "Simple Payback Period", f"{sd['payback_s3']:.1f} Anni" if lang=="ITA" else f"{sd['payback_s3']:.1f} Years")
             with mc2: plot_strategy_pies(sd['ac_s3'], sd['grid_s3'], sd['sell_s3'])
 
