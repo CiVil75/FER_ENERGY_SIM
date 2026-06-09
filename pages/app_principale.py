@@ -191,7 +191,7 @@ with exp_eco.expander(T["eco_title"], expanded=False):
     val_injection = st.number_input(T["eco_sell"], min_value=0.00, max_value=2.00, value=0.09, step=0.01, format="%.2f")
     capex_pv = st.number_input(T["eco_capex_PV"], min_value=100, max_value=2000, value=500, step=50)
     capex_wind = st.number_input(T["eco_capex_WIND"], min_value=100, max_value=2000, value=1000, step=50)
-    capex_bess = st.number_input(T["eco_capex_BESS"], min_value=10, max_value=200, value=800, step=5)
+    capex_bess = st.number_input(T["eco_capex_BESS"], min_value=10, max_value=200, value=80, step=5)
 
 # INTERFACCIA DI CONNESSIONE EV
 ev_hours_status = [False] * 24
