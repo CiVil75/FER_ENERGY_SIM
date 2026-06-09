@@ -628,8 +628,8 @@ if st.button(T["run_btn"], type="primary", use_container_width=True):
             monthly_ac_s2_agg[m] = sum(ac_s2_hourly[c_idx : c_idx + h_count])
             monthly_ac_s3_agg[m] = sum(ac_s3_hourly[c_idx : c_idx + h_count])
         c_idx += h_count
-
-    capex_base = pv_power * capex_pv + wind_power_kw * capex_wind + battery_capacity_kWh * capex_bess
+                                                                    
+    capex_base = pv_power * capex_pv + wind_power_kw * capex_wind 
     savings_s1 = (ac_s1 * cost_electricity) + (sell_s1 * val_injection)
     capex_s1_tot = capex_base + capex_ev_s1
     payback_s1 = capex_s1_tot / savings_s1 if savings_s1 > 0 else 99
